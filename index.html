@@ -1,0 +1,230 @@
+<!-- v1.0.0 -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:;"
+    />
+    <title>vw</title>
+    <link rel="stylesheet" href="css/vaultwares-square.css" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body class="vwsq-console-shell">
+    <!-- Titlebar ------------------------------------------------------- -->
+    <header class="titlebar" id="titlebar">
+      <div class="titlebar__brand">
+        <span class="titlebar__mark">vw</span>
+        <span class="titlebar__sub" data-i18n="app.subtitle">command runner</span>
+      </div>
+
+      <div class="titlebar__meta">
+        <span class="titlebar__root" id="root-indicator" title=""></span>
+      </div>
+
+      <div class="titlebar__controls">
+        <button class="winbtn" id="win-min" aria-label="Minimize" tabindex="-1">
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" /></svg>
+        </button>
+        <button class="winbtn" id="win-max" aria-label="Maximize" tabindex="-1">
+          <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2.5" width="7" height="7" /></svg>
+        </button>
+        <button class="winbtn winbtn--close" id="win-close" aria-label="Close" tabindex="-1">
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Body ----------------------------------------------------------- -->
+    <div class="shell">
+      <!-- Warm rail ---------------------------------------------------- -->
+      <nav class="rail vwsq-warm-rail" aria-label="Commands">
+        <div class="rail__search">
+          <svg class="rail__search-icon" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" />
+            <path d="M10.5 10.5L14 14" />
+          </svg>
+          <input
+            type="search"
+            id="filter"
+            class="rail__filter"
+            data-i18n-attr="placeholder:rail.filterPlaceholder"
+            aria-label="Filter commands"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <kbd class="rail__kbd">Ctrl K</kbd>
+        </div>
+
+        <div class="rail__actions">
+          <button class="btn btn--warm btn--block" id="btn-new-command">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+            <span data-i18n="rail.newCommand">Add command</span>
+          </button>
+        </div>
+
+        <div class="rail__tree" id="tree" role="tree" aria-label="Command categories"></div>
+
+        <!-- Background job queue ------------------------------------- -->
+        <section class="jobs" id="jobs-section" hidden>
+          <h2 class="jobs__title">
+            <span data-i18n="jobs.title">Background</span>
+            <span class="jobs__count" id="jobs-count">0</span>
+          </h2>
+          <ul class="jobs__list" id="jobs-list"></ul>
+        </section>
+
+        <footer class="rail__foot">
+          <button class="rail__footbtn" id="btn-history">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" /><path d="M8 4.5V8l2.5 1.5" />
+            </svg>
+            <span data-i18n="rail.history">History</span>
+          </button>
+          <span class="rail__count" id="command-count"></span>
+        </footer>
+      </nav>
+
+      <!-- Console main ------------------------------------------------- -->
+      <main class="main" id="main">
+        <!-- Empty state -->
+        <div class="empty" id="empty-state">
+          <svg class="empty__icon" viewBox="0 0 48 48" aria-hidden="true">
+            <rect x="5" y="9" width="38" height="30" rx="4" />
+            <path d="M13 20l5 4-5 4M24 28h10" />
+          </svg>
+          <h2 class="empty__title" data-i18n="empty.title">No command selected</h2>
+          <p class="empty__body" data-i18n="empty.body">
+            Pick a command from the rail to build its parameters and run it.
+          </p>
+        </div>
+
+        <!-- Command surface -->
+        <div class="surface" id="surface" hidden>
+          <!-- Command header -->
+          <div class="cmdhead">
+            <div class="cmdhead__top">
+              <h1 class="cmdhead__name" id="cmd-name"></h1>
+              <span class="chip" id="cmd-category"></span>
+              <span class="chip chip--alert" id="cmd-destructive" hidden data-i18n="cmd.destructive">destructive</span>
+              <span class="chip chip--warning" id="cmd-missing" hidden data-i18n="cmd.missing">script missing</span>
+              <div class="cmdhead__spacer"></div>
+              <button class="iconbtn" id="btn-edit-command" data-i18n-attr="title:cmd.edit" aria-label="Edit command">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2.5l2.5 2.5L6 12.5 3 13l.5-3z" /></svg>
+              </button>
+              <button class="iconbtn" id="btn-cmd-menu" data-i18n-attr="title:cmd.more" aria-label="More actions" aria-haspopup="menu">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="3" r="1.2" /><circle cx="8" cy="8" r="1.2" /><circle cx="8" cy="13" r="1.2" />
+                </svg>
+              </button>
+            </div>
+            <p class="cmdhead__desc" id="cmd-desc"></p>
+            <p class="cmdhead__path" id="cmd-path"></p>
+          </div>
+
+          <!-- Working directory -->
+          <div class="targetdir">
+            <label class="targetdir__label" for="targetdir-input" data-i18n="targetdir.label">
+              Working directory
+            </label>
+            <div class="targetdir__row">
+              <input
+                type="text"
+                id="targetdir-input"
+                class="input input--mono targetdir__input"
+                data-i18n-attr="placeholder:targetdir.placeholder"
+                spellcheck="false"
+              />
+              <button class="btn btn--ghost" id="btn-pick-dir" data-i18n="targetdir.browse">Browse</button>
+            </div>
+            <p class="targetdir__hint" data-i18n="targetdir.hint">
+              The command runs here, exactly as if you had opened a shell in this folder.
+            </p>
+          </div>
+
+          <!-- Parameters -->
+          <section class="params" id="params-section">
+            <h2 class="section__title" data-i18n="params.title">Parameters</h2>
+            <div class="params__grid" id="params-grid"></div>
+            <p class="params__none" id="params-none" hidden data-i18n="params.none">
+              This command takes no registered parameters.
+            </p>
+          </section>
+
+          <!-- Examples -->
+          <section class="examples" id="examples-section" hidden>
+            <h2 class="section__title" data-i18n="examples.title">Examples</h2>
+            <ul class="examples__list" id="examples-list"></ul>
+          </section>
+
+          <!-- Run bar -->
+          <div class="runbar">
+            <button class="btn btn--primary btn--run" id="btn-run">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3l8 5-8 5z" /></svg>
+              <span data-i18n="run.run">Run</span>
+            </button>
+            <button class="btn btn--danger btn--run" id="btn-stop" hidden>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1" /></svg>
+              <span data-i18n="run.stop">Stop</span>
+            </button>
+            <label class="toggle toggle--inline" id="bg-toggle-wrap">
+              <input type="checkbox" id="run-background" />
+              <span class="toggle__track"><span class="toggle__thumb"></span></span>
+              <span class="toggle__label" data-i18n="run.background">Run in background</span>
+            </label>
+            <div class="runbar__spacer"></div>
+            <span class="runbar__status" id="run-status"></span>
+          </div>
+
+          <!-- Output console -->
+          <section class="console" id="console-section">
+            <div class="console__head">
+              <h2 class="section__title">
+                <span data-i18n="console.title">Output</span>
+                <span class="console__source" id="console-source"></span>
+              </h2>
+              <div class="console__tools">
+                <label class="console__follow">
+                  <input type="checkbox" id="follow-output" checked />
+                  <span data-i18n="console.follow">Follow</span>
+                </label>
+                <button class="iconbtn" id="btn-copy-output" data-i18n-attr="title:console.copy" aria-label="Copy output">
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5v-2a1 1 0 00-1-1h-6a1 1 0 00-1 1v6a1 1 0 001 1h2" />
+                  </svg>
+                </button>
+                <button class="iconbtn" id="btn-clear-output" data-i18n-attr="title:console.clear" aria-label="Clear output">
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M6.5 4V2.5h3V4M4.5 4l.5 9h6l.5-9" /></svg>
+                </button>
+              </div>
+            </div>
+            <pre class="console__out" id="console-out" role="log" aria-live="polite" aria-label="Command output"></pre>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Toast stack ----------------------------------------------------- -->
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <!-- Modal host ------------------------------------------------------ -->
+    <div class="modal-host" id="modal-host" hidden></div>
+
+    <!-- Context menu host ----------------------------------------------- -->
+    <div class="ctxmenu" id="ctxmenu" hidden role="menu"></div>
+
+    <script src="js/translations.en.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/util.js"></script>
+    <script src="js/ansi.js"></script>
+    <script src="js/toast.js"></script>
+    <script src="js/modal.js"></script>
+    <script src="js/form.js"></script>
+    <script src="js/jobs.js"></script>
+    <script src="js/rail.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

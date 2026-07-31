@@ -1,0 +1,270 @@
+/* ==========================================================================
+   vaultwares² (vaultwares-square) — "Obsidian & Iris"
+   --------------------------------------------------------------------------
+   A sibling palette to vaultwares-revisited, created so internal tooling does
+   not oversaturate the aubergine + gold brand surface.
+
+   It keeps the Redesign's structural duality but drops the day/night reading:
+   console and warm are NOT modes, they are SIMULTANEOUS REGIONS.
+
+     console (obsidian) — the operational main surface, ~85% of the viewport.
+                          Where commands run and output streams.
+     warm    (bone)     — the rail, nav and railings, ~15%.
+                          Where you choose, not where you act.
+
+   Never use a raw hex outside this file. Components reference --vwsq-* only.
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
+:root {
+  /* -- Typography ------------------------------------------------------- */
+  --vwsq-font-sans: "Inter", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --vwsq-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* ----------------------------------------------------------------------
+     CONSOLE — obsidian, blue-slate black. Main operational surface.
+     Each step is a real elevation level, not decoration.
+     ---------------------------------------------------------------------- */
+  --vwsq-console-bg: #0a0c11;         /* app root canvas                    */
+  --vwsq-console-surface: #11141b;    /* default container                  */
+  --vwsq-console-sunken: #070810;     /* output console, wells, code blocks */
+  --vwsq-console-raised: #191d27;     /* cards, form panels                 */
+  --vwsq-console-elevated: #242935;   /* modals, popovers, drag states      */
+  --vwsq-console-active: #323847;     /* pressed / selected console surface */
+  --vwsq-console-hover: #1f2430;      /* hover fill                         */
+
+  --vwsq-console-text: #bac2d2;       /* primary text                       */
+  --vwsq-console-text-secondary: rgba(186, 194, 210, 0.72);
+  --vwsq-console-text-dim: rgba(186, 194, 210, 0.46);
+  --vwsq-console-text-bright: #e6eaf2;
+
+  --vwsq-console-border: rgba(255, 255, 255, 0.06);
+  --vwsq-console-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* ----------------------------------------------------------------------
+     WARM — bone. The rail, nav, railings. Paper you choose from.
+     ---------------------------------------------------------------------- */
+  --vwsq-warm-bg: #edece8;            /* rail canvas                        */
+  --vwsq-warm-raised: #f8f7f4;        /* elevated paper, inputs             */
+  --vwsq-warm-muted: #dedcd6;         /* tertiary, disabled                 */
+  --vwsq-warm-sunken: #e4e2dd;        /* wells, active nav slot             */
+
+  --vwsq-warm-ink: #0f1116;           /* primary text on warm               */
+  --vwsq-warm-ink-secondary: rgba(15, 17, 22, 0.66);
+  --vwsq-warm-ink-dim: rgba(15, 17, 22, 0.42);
+
+  --vwsq-warm-border: rgba(15, 17, 22, 0.10);
+  --vwsq-warm-border-strong: rgba(15, 17, 22, 0.18);
+
+  /* ----------------------------------------------------------------------
+     IRIS — primary accent. Run, active command, focus of intent.
+     ---------------------------------------------------------------------- */
+  --vwsq-iris-050: #eef0fe;
+  --vwsq-iris-100: #dde0fd;
+  --vwsq-iris-200: #bac0fb;
+  --vwsq-iris-300: #98a1f7;
+  --vwsq-iris-400: #8189f5;
+  --vwsq-iris-500: #6e7bf2;           /* base                               */
+  --vwsq-iris-600: #5866dc;
+  --vwsq-iris-700: #4551b8;
+  --vwsq-iris-800: #343e8f;
+  --vwsq-iris-900: #252d66;
+  --vwsq-iris: var(--vwsq-iris-500);
+  --vwsq-iris-soft: rgba(110, 123, 242, 0.14);
+  --vwsq-iris-softer: rgba(110, 123, 242, 0.07);
+  --vwsq-iris-glow: rgba(110, 123, 242, 0.32);
+
+  /* ----------------------------------------------------------------------
+     CORAL — secondary accent. Focus rings, links, warm counterweight.
+     ---------------------------------------------------------------------- */
+  --vwsq-coral-050: #fff0eb;
+  --vwsq-coral-100: #ffe0d6;
+  --vwsq-coral-200: #ffc4b0;
+  --vwsq-coral-300: #ffa88b;
+  --vwsq-coral-400: #ff9679;
+  --vwsq-coral-500: #ff8a6b;          /* base                               */
+  --vwsq-coral-600: #e86f4f;
+  --vwsq-coral-700: #c4573a;
+  --vwsq-coral-800: #9b4029;
+  --vwsq-coral-900: #722d1b;
+  --vwsq-coral: var(--vwsq-coral-500);
+  --vwsq-coral-soft: rgba(255, 138, 107, 0.14);
+  --vwsq-coral-glow: rgba(255, 138, 107, 0.34);
+
+  /* ----------------------------------------------------------------------
+     SIGNALS — hardware LED semantics. Each carries a soft tint for fills.
+     ---------------------------------------------------------------------- */
+  --vwsq-signal-online: #56d98d;      /* success, running healthy, exit 0   */
+  --vwsq-signal-relay: #5ab8f0;       /* info, neutral processing           */
+  --vwsq-signal-warning: #e9b054;     /* warning, intermediate failure      */
+  --vwsq-signal-alert: #f45d6b;       /* destructive, crash, non-zero exit  */
+  --vwsq-signal-sync: #a585f5;        /* syncing, queued, background job    */
+  --vwsq-signal-idle: #6b7385;        /* dormant, never run                 */
+
+  --vwsq-signal-online-soft: rgba(86, 217, 141, 0.14);
+  --vwsq-signal-relay-soft: rgba(90, 184, 240, 0.14);
+  --vwsq-signal-warning-soft: rgba(233, 176, 84, 0.14);
+  --vwsq-signal-alert-soft: rgba(244, 93, 107, 0.14);
+  --vwsq-signal-sync-soft: rgba(165, 133, 245, 0.14);
+
+  /* ----------------------------------------------------------------------
+     GEOMETRY — inherited rhythm from the Redesign implementation.
+     ---------------------------------------------------------------------- */
+  --vwsq-radius-card: 28px;
+  --vwsq-radius-panel: 16px;
+  --vwsq-radius-pill: 20px;
+  --vwsq-radius-control: 4px;
+
+  --vwsq-space-1: 4px;
+  --vwsq-space-2: 8px;
+  --vwsq-space-3: 12px;
+  --vwsq-space-4: 16px;
+  --vwsq-space-5: 24px;
+  --vwsq-space-6: 32px;
+
+  --vwsq-titlebar-h: 32px;
+  --vwsq-rail-w: 300px;
+
+  /* -- Motion ------------------------------------------------------------ */
+  --vwsq-motion-snap: 90ms cubic-bezier(0.4, 0, 0.2, 1);   /* hover, press  */
+  --vwsq-motion-ui: 160ms cubic-bezier(0.4, 0, 0.2, 1);    /* panels        */
+  --vwsq-motion-enter: 400ms cubic-bezier(0.16, 1, 0.3, 1); /* list entrance */
+
+  /* -- Focus ------------------------------------------------------------- */
+  --vwsq-focus-ring: 2px solid var(--vwsq-coral-500);
+  --vwsq-focus-offset: 2px;
+}
+
+/* ==========================================================================
+   Region shells
+   ========================================================================== */
+
+.vwsq-console-shell {
+  background:
+    radial-gradient(circle at 22% -4%, rgba(110, 123, 242, 0.13), transparent 34rem),
+    linear-gradient(180deg, var(--vwsq-console-surface), var(--vwsq-console-bg));
+  color: var(--vwsq-console-text);
+}
+
+.vwsq-warm-rail {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 138, 107, 0.10), transparent 20rem),
+    var(--vwsq-warm-bg);
+  color: var(--vwsq-warm-ink);
+}
+
+/* ==========================================================================
+   Surfaces
+   ========================================================================== */
+
+.vwsq-card {
+  border: 1px solid var(--vwsq-console-border);
+  background: var(--vwsq-console-raised);
+  border-radius: var(--vwsq-radius-card);
+}
+
+.vwsq-panel {
+  border: 1px solid var(--vwsq-console-border);
+  background: var(--vwsq-console-raised);
+  border-radius: var(--vwsq-radius-panel);
+}
+
+.vwsq-warm-card {
+  border: 1px solid var(--vwsq-warm-border);
+  background: var(--vwsq-warm-raised);
+  border-radius: var(--vwsq-radius-panel);
+}
+
+/* ==========================================================================
+   LED — slow hardware pulse. Passive animation stays relaxed.
+   ========================================================================== */
+
+.vwsq-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--vwsq-signal-idle);
+}
+
+.vwsq-led--live {
+  animation: vwsqLedPulse 4s ease-in-out infinite;
+}
+
+@keyframes vwsqLedPulse {
+  0%   { opacity: 0.85; transform: scale(0.98); }
+  50%  { opacity: 1;    transform: scale(1); }
+  100% { opacity: 0.85; transform: scale(0.98); }
+}
+
+@keyframes vwsqFadeInScale {
+  from { opacity: 0; transform: scale(0.985) translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ==========================================================================
+   Scrollbars — terminal tracks inside console, paper tracks inside warm.
+   ========================================================================== */
+
+.vwsq-console-shell ::-webkit-scrollbar,
+.vwsq-console-shell::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.vwsq-console-shell ::-webkit-scrollbar-track,
+.vwsq-console-shell::-webkit-scrollbar-track {
+  background: var(--vwsq-console-sunken);
+}
+
+.vwsq-console-shell ::-webkit-scrollbar-thumb,
+.vwsq-console-shell::-webkit-scrollbar-thumb {
+  background: var(--vwsq-console-active);
+  border-radius: 4px;
+}
+
+.vwsq-console-shell ::-webkit-scrollbar-thumb:hover,
+.vwsq-console-shell::-webkit-scrollbar-thumb:hover {
+  background: var(--vwsq-iris-600);
+}
+
+.vwsq-warm-rail ::-webkit-scrollbar,
+.vwsq-warm-rail::-webkit-scrollbar {
+  width: 8px;
+}
+
+.vwsq-warm-rail ::-webkit-scrollbar-track,
+.vwsq-warm-rail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vwsq-warm-rail ::-webkit-scrollbar-thumb,
+.vwsq-warm-rail::-webkit-scrollbar-thumb {
+  background: var(--vwsq-warm-muted);
+  border-radius: 4px;
+}
+
+.vwsq-warm-rail ::-webkit-scrollbar-thumb:hover,
+.vwsq-warm-rail::-webkit-scrollbar-thumb:hover {
+  background: var(--vwsq-warm-border-strong);
+}
+
+/* ==========================================================================
+   Accessibility floor
+   ========================================================================== */
+
+:focus-visible {
+  outline: var(--vwsq-focus-ring);
+  outline-offset: var(--vwsq-focus-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

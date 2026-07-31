@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+build/*.exe
+
+# Local runtime state (userData lives outside the repo, but just in case)
+store/
+*.log
+
+# QA artifacts
+*.png
+!build/icon.png
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

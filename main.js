@@ -1,0 +1,401 @@
+/* ==========================================================================
+   vw-gui :: Electron main process
+   --------------------------------------------------------------------------
+   Owns everything the renderer is not allowed to touch: the filesystem, the
+   PowerShell child processes, and the vw-commands.ps1 registry.
+   ========================================================================== */
+
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { spawn } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+const fsp = require("fs/promises");
+const os = require("os");
+
+// --- Configuration ---------------------------------------------------------
+
+// The live CLI source. The copy under Desktop\pwsh\VaultWares CLI is a stale
+// install target and is deliberately NOT driven by this GUI.
+const VW_ROOT = path.join(os.homedir(), "Desktop", "vw-cli");
+const REGISTRY_PATH = path.join(VW_ROOT, "vw-commands.ps1");
+
+const SCRIPTS_DIR = path.join(__dirname, "scripts");
+const READ_REGISTRY = path.join(SCRIPTS_DIR, "vwg-read-registry.ps1");
+const WRITE_REGISTRY = path.join(SCRIPTS_DIR, "vwg-write-registry.ps1");
+const PARSE_PARAMS = path.join(SCRIPTS_DIR, "vwg-parse-params.ps1");
+const RUNNER = path.join(SCRIPTS_DIR, "vwg-run.ps1");
+
+const STORE_DIR = path.join(app.getPath("userData"), "store");
+const HISTORY_FILE = path.join(STORE_DIR, "history.json");
+const PREFS_FILE = path.join(STORE_DIR, "prefs.json");
+const HISTORY_LIMIT = 300;
+
+let mainWindow = null;
+
+// --- PowerShell helpers ----------------------------------------------------
+
+function pwshArgs(scriptPath, extra = []) {
+  return ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath, ...extra];
+}
+
+/** Run a helper script to completion and return its stdout. */
+function pwshCapture(scriptPath, extra = [], cwd = VW_ROOT) {
+  return new Promise((resolve, reject) => {
+    const child = spawn("pwsh", pwshArgs(scriptPath, extra), {
+      cwd,
+      windowsHide: true,
+      env: { ...process.env },
+    });
+
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => (stdout += d.toString("utf8")));
+    child.stderr.on("data", (d) => (stderr += d.toString("utf8")));
+
+    child.on("error", (err) => reject(err));
+    child.on("close", (code) => {
+      if (code === 0) resolve(stdout.trim());
+      else reject(new Error(stderr.trim() || stdout.trim() || `pwsh exited with code ${code}`));
+    });
+  });
+}
+
+function toB64(obj) {
+  return Buffer.from(JSON.stringify(obj), "utf8").toString("base64");
+}
+
+// --- Local store -----------------------------------------------------------
+
+async function ensureStore() {
+  await fsp.mkdir(STORE_DIR, { recursive: true });
+}
+
+async function readJson(file, fallback) {
+  try {
+    return JSON.parse(await fsp.readFile(file, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+async function writeJson(file, data) {
+  await ensureStore();
+  await fsp.writeFile(file, JSON.stringify(data, null, 2), "utf8");
+}
+
+// --- Running jobs ----------------------------------------------------------
+
+/**
+ * Every spawned command lives here until it exits, keyed by job id.
+ * The foreground slot is serial by convention (enforced in the renderer);
+ * background jobs run alongside it.
+ */
+const jobs = new Map();
+let jobCounter = 0;
+
+function send(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
+function startJob({ scriptPath, params, cwd, background, commandName }) {
+  const id = `job-${++jobCounter}`;
+  const argsB64 = toB64(params || {});
+
+  const child = spawn("pwsh", pwshArgs(RUNNER, ["-ScriptPath", scriptPath, "-ArgsB64", argsB64]), {
+    cwd: cwd || VW_ROOT,
+    windowsHide: true,
+    env: { ...process.env },
+  });
+
+  const job = {
+    id,
+    commandName,
+    background: !!background,
+    cwd: cwd || VW_ROOT,
+    params: params || {},
+    startedAt: Date.now(),
+    child,
+    exitCode: null,
+    buffer: "",
+  };
+  jobs.set(id, job);
+
+  const emit = (stream) => (data) => {
+    const text = data.toString("utf8");
+    job.buffer += text;
+    // Keep the replay buffer bounded; the console UI trims too.
+    if (job.buffer.length > 400000) job.buffer = job.buffer.slice(-300000);
+    send("job:output", { id, stream, text });
+  };
+
+  child.stdout.on("data", emit("stdout"));
+  child.stderr.on("data", emit("stderr"));
+
+  child.on("error", (err) => {
+    send("job:output", { id, stream: "stderr", text: `\n${err.message}\n` });
+  });
+
+  child.on("close", (code) => {
+    job.exitCode = code;
+    job.endedAt = Date.now();
+    send("job:exit", { id, exitCode: code, durationMs: job.endedAt - job.startedAt });
+    recordHistory(job).catch(() => {});
+    // Keep the record briefly so the renderer can still read the buffer.
+    setTimeout(() => jobs.delete(id), 60000);
+  });
+
+  return {
+    id,
+    commandName,
+    background: job.background,
+    cwd: job.cwd,
+    startedAt: job.startedAt,
+  };
+}
+
+async function recordHistory(job) {
+  const history = await readJson(HISTORY_FILE, []);
+  history.unshift({
+    id: job.id,
+    commandName: job.commandName,
+    params: job.params,
+    cwd: job.cwd,
+    background: job.background,
+    exitCode: job.exitCode,
+    startedAt: job.startedAt,
+    endedAt: job.endedAt,
+    durationMs: (job.endedAt || Date.now()) - job.startedAt,
+  });
+  await writeJson(HISTORY_FILE, history.slice(0, HISTORY_LIMIT));
+}
+
+/**
+ * Kill a process tree. PowerShell scripts routinely spawn ffmpeg/python
+ * grandchildren, so killing only the direct child orphans real work.
+ */
+function killTree(pid) {
+  return new Promise((resolve) => {
+    const killer = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true });
+    killer.on("close", () => resolve(true));
+    killer.on("error", () => resolve(false));
+  });
+}
+
+// --- IPC: registry ---------------------------------------------------------
+
+ipcMain.handle("registry:load", async () => {
+  const json = await pwshCapture(READ_REGISTRY, ["-RegistryPath", REGISTRY_PATH]);
+  return { commands: JSON.parse(json), registryPath: REGISTRY_PATH, vwRoot: VW_ROOT };
+});
+
+ipcMain.handle("registry:write", async (_e, { action, name, entry, newName }) => {
+  const extra = ["-Action", action, "-RegistryPath", REGISTRY_PATH, "-Name", name];
+  if (entry) extra.push("-EntryB64", toB64(entry));
+  if (newName) extra.push("-NewName", newName);
+  const json = await pwshCapture(WRITE_REGISTRY, extra);
+  return JSON.parse(json);
+});
+
+ipcMain.handle("script:parseParams", async (_e, { scriptPath }) => {
+  const json = await pwshCapture(PARSE_PARAMS, ["-Path", scriptPath]);
+  return JSON.parse(json);
+});
+
+/** Copy an uploaded .ps1 next to the other command scripts. */
+ipcMain.handle("script:import", async (_e, { sourcePath, overwrite }) => {
+  const base = path.basename(sourcePath);
+  const dest = path.join(VW_ROOT, base);
+
+  if (fs.existsSync(dest) && !overwrite) {
+    const sameFile = path.resolve(sourcePath).toLowerCase() === dest.toLowerCase();
+    if (!sameFile) return { ok: false, reason: "exists", dest };
+  }
+  if (path.resolve(sourcePath).toLowerCase() !== dest.toLowerCase()) {
+    await fsp.copyFile(sourcePath, dest);
+  }
+  return { ok: true, dest };
+});
+
+ipcMain.handle("script:delete", async (_e, { scriptPath }) => {
+  // Guard against deleting outside the CLI root.
+  const resolved = path.resolve(scriptPath);
+  if (!resolved.toLowerCase().startsWith(path.resolve(VW_ROOT).toLowerCase())) {
+    throw new Error(`Refusing to delete outside ${VW_ROOT}: ${resolved}`);
+  }
+  if (fs.existsSync(resolved)) await fsp.unlink(resolved);
+  return { ok: true };
+});
+
+// --- IPC: execution --------------------------------------------------------
+
+ipcMain.handle("job:start", async (_e, payload) => startJob(payload));
+
+ipcMain.handle("job:stop", async (_e, { id }) => {
+  const job = jobs.get(id);
+  if (!job || !job.child || job.child.killed) return { ok: false };
+  await killTree(job.child.pid);
+  return { ok: true };
+});
+
+ipcMain.handle("job:buffer", async (_e, { id }) => {
+  const job = jobs.get(id);
+  return { buffer: job ? job.buffer : "" };
+});
+
+/** Administrator check, mirroring vw.ps1's destructive gate. */
+ipcMain.handle("system:isAdmin", async () => {
+  try {
+    const out = await pwshCapture(
+      path.join(SCRIPTS_DIR, "vwg-is-admin.ps1"),
+      [],
+      VW_ROOT
+    );
+    return out.trim() === "True";
+  } catch {
+    return false;
+  }
+});
+
+/** The AI-assistant refusal from the global gating policy, preserved. */
+ipcMain.handle("system:agentEnv", async () => {
+  const flags = {
+    ANTIGRAVITY_AGENT: process.env.ANTIGRAVITY_AGENT === "1",
+    AGENT_NAME: !!process.env.AGENT_NAME,
+    DEVIN: !!process.env.DEVIN,
+  };
+  return { blocked: Object.values(flags).some(Boolean), flags };
+});
+
+// --- IPC: dialogs and shell ------------------------------------------------
+
+ipcMain.handle("dialog:pickFolder", async (_e, { defaultPath } = {}) => {
+  const res = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"],
+    defaultPath: defaultPath || VW_ROOT,
+  });
+  return res.canceled ? null : res.filePaths[0];
+});
+
+ipcMain.handle("dialog:pickFile", async (_e, { defaultPath, filters } = {}) => {
+  const res = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    defaultPath: defaultPath || VW_ROOT,
+    filters: filters || [{ name: "All files", extensions: ["*"] }],
+  });
+  return res.canceled ? null : res.filePaths[0];
+});
+
+ipcMain.handle("shell:openPath", async (_e, { target }) => {
+  const err = await shell.openPath(target);
+  return { ok: !err, error: err };
+});
+
+ipcMain.handle("shell:showInFolder", async (_e, { target }) => {
+  shell.showItemInFolder(target);
+  return { ok: true };
+});
+
+// --- IPC: store ------------------------------------------------------------
+
+ipcMain.handle("history:list", async () => readJson(HISTORY_FILE, []));
+ipcMain.handle("history:clear", async () => {
+  await writeJson(HISTORY_FILE, []);
+  return { ok: true };
+});
+
+ipcMain.handle("prefs:get", async () => readJson(PREFS_FILE, {}));
+ipcMain.handle("prefs:set", async (_e, prefs) => {
+  await writeJson(PREFS_FILE, prefs);
+  return { ok: true };
+});
+
+// --- Window ----------------------------------------------------------------
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1480,
+    height: 940,
+    minWidth: 1024,
+    minHeight: 680,
+    backgroundColor: "#0a0c11",
+    show: false,
+    titleBarStyle: "hidden",
+    titleBarOverlay: false,
+    frame: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  mainWindow.loadFile("index.html");
+  mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.on("closed", () => (mainWindow = null));
+
+  // Surface renderer failures on the terminal instead of a blank window.
+  mainWindow.webContents.on("render-process-gone", (_e, details) => {
+    console.error("[renderer gone]", JSON.stringify(details));
+  });
+  mainWindow.webContents.on("preload-error", (_e, preloadPath, error) => {
+    console.error("[preload error]", preloadPath, error && error.message);
+  });
+  mainWindow.webContents.on("did-fail-load", (_e, code, desc) => {
+    console.error("[load failed]", code, desc);
+  });
+  if (process.argv.includes("--vwg-debug")) {
+    mainWindow.webContents.on("console-message", (_e, level, message, line, source) => {
+      console.log(`[renderer:${level}] ${source}:${line} ${message}`);
+    });
+  }
+
+  // QA hook: --vwg-shot <file> [--vwg-shot-delay ms] renders the window's own
+  // contents (not the screen) to a PNG and quits. Used for visual checks.
+  const shotIdx = process.argv.indexOf("--vwg-shot");
+  if (shotIdx !== -1 && process.argv[shotIdx + 1]) {
+    const shotPath = process.argv[shotIdx + 1];
+    const delayIdx = process.argv.indexOf("--vwg-shot-delay");
+    const delay = delayIdx !== -1 ? parseInt(process.argv[delayIdx + 1], 10) || 2500 : 2500;
+
+    mainWindow.webContents.once("did-finish-load", () => {
+      setTimeout(async () => {
+        try {
+          const image = await mainWindow.webContents.capturePage();
+          await fsp.writeFile(shotPath, image.toPNG());
+          console.log("[shot]", shotPath);
+        } catch (err) {
+          console.error("[shot failed]", err.message);
+        }
+        app.quit();
+      }, delay);
+    });
+  }
+}
+
+// Window chrome controls (frameless shell).
+ipcMain.handle("win:minimize", () => mainWindow && mainWindow.minimize());
+ipcMain.handle("win:maximize", () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+});
+ipcMain.handle("win:close", () => mainWindow && mainWindow.close());
+
+app.whenReady().then(() => {
+  ensureStore().catch(() => {});
+  createWindow();
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on("window-all-closed", () => {
+  // Kill anything still running so background jobs do not outlive the UI.
+  for (const job of jobs.values()) {
+    if (job.child && !job.child.killed) killTree(job.child.pid);
+  }
+  if (process.platform !== "darwin") app.quit();
+});

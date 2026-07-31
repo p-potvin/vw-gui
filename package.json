@@ -1,0 +1,44 @@
+{
+  "name": "vw-gui",
+  "version": "1.0.0",
+  "description": "Desktop front-end for the vw PowerShell CLI. Browse the command registry, fill parameters, pick a working directory, and watch output stream. Styled in vaultwares-square.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "vaultwares",
+    "powershell",
+    "cli",
+    "electron"
+  ],
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^41.2.1",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.vaultwares.vwgui",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "css/**",
+      "js/**",
+      "scripts/**",
+      "node_modules/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "vw-gui-setup-${version}.${ext}"
+    }
+  },
+  "allowScripts": {
+    "electron@41.10.3": true
+  }
+}
