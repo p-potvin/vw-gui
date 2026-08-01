@@ -55,9 +55,11 @@
 
   /**
    * Does this parameter name look like it wants a path?
-   * Drives the browse-button heuristic agreed in the design contract.
+   * Substring match, not word-boundary: camelCase names like "InputFile" and
+   * "OutputFile" are the most obvious path params and a boundary rule misses
+   * every one of them.
    */
-  const PATH_RE = /(^|[^a-z])(path|dir|directory|root|file|folder|input|output|source|dest|destination|target|location)([^a-z]|$)/i;
+  const PATH_RE = /(path|dir|directory|root|file|folder|input|output|source|dest|destination|target|location)/i;
 
   function isPathParam(name) {
     return PATH_RE.test(String(name || ""));

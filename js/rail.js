@@ -123,9 +123,17 @@
         itemsWrap.appendChild(btn);
       });
 
-      tree.appendChild(
-        U.el("div", { class: "cat" + (isOpen ? " cat--open" : "") }, [head, itemsWrap])
-      );
+      const catNode = U.el("div", { class: "cat" + (isOpen ? " cat--open" : "") }, [
+        head,
+        itemsWrap,
+      ]);
+
+      // Spine shade, assigned by position in the sorted category list so the
+      // rail reads top-to-bottom as one gradient rather than random colours.
+      const spineIndex = (cats.indexOf(cat) % 12) + 1;
+      catNode.style.setProperty("--cat-spine", `var(--vwsq-spine-${spineIndex})`);
+
+      tree.appendChild(catNode);
     }
   }
 

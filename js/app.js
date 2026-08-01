@@ -25,7 +25,14 @@
     menuBtn: document.getElementById("btn-cmd-menu"),
     newBtn: document.getElementById("btn-new-command"),
     historyBtn: document.getElementById("btn-history"),
+    strip: document.getElementById("signal-strip"),
+    consoleOut: document.getElementById("console-out"),
   };
+
+  /** Run state on the titlebar strip: "", "busy", "ok", "fail". */
+  function setSignal(state) {
+    els.strip.className = "signalstrip" + (state ? ` signalstrip--${state}` : "");
+  }
 
   let commands = [];
   let current = null;
@@ -121,6 +128,7 @@
 
     els.status.textContent = "";
     els.status.className = "runbar__status";
+    setSignal("");
 
     prefs.lastCommand = cmd.Name;
     savePrefs();
@@ -139,6 +147,10 @@
     els.targetDir.value = dir || "";
     form.setCwdPlaceholder(dir);
     prefs.targetDir = dir || "";
+    // Feeds the idle console's "PS <cwd|>" prompt. Long paths are trimmed to
+    // the leaf so the caret line does not wrap.
+    const leaf = dir ? dir.split(/[\\/]/).filter(Boolean).pop() : "";
+    els.consoleOut.setAttribute("data-cwd", leaf || "");
     savePrefs();
     setRunEnabled();
   }
@@ -201,6 +213,7 @@
       els.stop.hidden = false;
       els.status.textContent = i18n.t("run.busy");
       els.status.className = "runbar__status runbar__status--busy";
+      setSignal("busy");
     }
   }
 
@@ -307,9 +320,11 @@
     if (exitCode === 0) {
       els.status.textContent = i18n.t("run.done");
       els.status.className = "runbar__status runbar__status--ok";
+      setSignal("ok");
     } else {
       els.status.textContent = i18n.t("run.failed", { code: exitCode });
       els.status.className = "runbar__status runbar__status--fail";
+      setSignal("fail");
     }
   };
 

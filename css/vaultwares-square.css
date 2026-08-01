@@ -15,12 +15,18 @@
    Never use a raw hex outside this file. Components reference --vwsq-* only.
    ========================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+@import url("../fonts/fonts.css");
 
 :root {
-  /* -- Typography ------------------------------------------------------- */
-  --vwsq-font-sans: "Inter", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --vwsq-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  /* -- Typography -------------------------------------------------------
+     Packaged locally; the app never calls out to a font CDN.
+       Quicksand   — rounded geometric sans, softer than Inter
+       Victor Mono — semi-rounded mono, distinctive without being noisy
+       Monofett    — heavy stencil display, used sparingly for identity
+     -------------------------------------------------------------------- */
+  --vwsq-font-sans: "Quicksand", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --vwsq-font-mono: "Victor Mono", ui-monospace, SFMono-Regular, monospace;
+  --vwsq-font-display: "Monofett", var(--vwsq-font-mono);
 
   /* ----------------------------------------------------------------------
      CONSOLE — obsidian, blue-slate black. Main operational surface.
@@ -109,6 +115,25 @@
   --vwsq-signal-sync-soft: rgba(165, 133, 245, 0.14);
 
   /* ----------------------------------------------------------------------
+     SPINE RAMP — one shade per rail category.
+     A tight walk through the blue→violet→magenta band rather than twelve
+     unrelated hues, so the rail reads as a single gradient of related
+     shades and never as a colour-coded toy.
+     ---------------------------------------------------------------------- */
+  --vwsq-spine-1: hsl(222 74% 68%);
+  --vwsq-spine-2: hsl(230 74% 68%);
+  --vwsq-spine-3: hsl(238 74% 69%);
+  --vwsq-spine-4: hsl(246 73% 69%);
+  --vwsq-spine-5: hsl(254 72% 69%);
+  --vwsq-spine-6: hsl(262 71% 70%);
+  --vwsq-spine-7: hsl(270 70% 70%);
+  --vwsq-spine-8: hsl(278 69% 70%);
+  --vwsq-spine-9: hsl(286 68% 71%);
+  --vwsq-spine-10: hsl(294 67% 71%);
+  --vwsq-spine-11: hsl(302 66% 71%);
+  --vwsq-spine-12: hsl(310 65% 72%);
+
+  /* ----------------------------------------------------------------------
      GEOMETRY — inherited rhythm from the Redesign implementation.
      ---------------------------------------------------------------------- */
   --vwsq-radius-card: 28px;
@@ -140,16 +165,24 @@
    Region shells
    ========================================================================== */
 
+/* Seam lighting.
+   Rather than the usual "paler in the top-left corner" wash, the light source
+   sits at the joint where warm meets console and bleeds outward into both.
+   The two regions read as lit by the same lamp — which is the whole point of
+   them being simultaneous rather than alternate modes. */
+
 .vwsq-console-shell {
   background:
-    radial-gradient(circle at 22% -4%, rgba(110, 123, 242, 0.13), transparent 34rem),
-    linear-gradient(180deg, var(--vwsq-console-surface), var(--vwsq-console-bg));
+    radial-gradient(ellipse 55rem 46rem at 0% 44%, rgba(110, 123, 242, 0.17), transparent 72%),
+    radial-gradient(ellipse 26rem 22rem at 0% 44%, rgba(255, 138, 107, 0.05), transparent 70%),
+    linear-gradient(190deg, var(--vwsq-console-surface), var(--vwsq-console-bg) 62%);
   color: var(--vwsq-console-text);
 }
 
 .vwsq-warm-rail {
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 138, 107, 0.10), transparent 20rem),
+    radial-gradient(ellipse 18rem 44rem at 100% 44%, rgba(255, 138, 107, 0.16), transparent 74%),
+    radial-gradient(ellipse 12rem 30rem at 100% 44%, rgba(110, 123, 242, 0.07), transparent 72%),
     var(--vwsq-warm-bg);
   color: var(--vwsq-warm-ink);
 }

@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:;"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; img-src 'self' data:;"
     />
     <title>vw</title>
     <link rel="stylesheet" href="css/vaultwares-square.css" />
@@ -35,6 +35,9 @@
         </button>
       </div>
     </header>
+
+    <!-- Run-state signal strip ----------------------------------------- -->
+    <div class="signalstrip" id="signal-strip" role="presentation"></div>
 
     <!-- Body ----------------------------------------------------------- -->
     <div class="shell">
@@ -90,10 +93,7 @@
       <main class="main" id="main">
         <!-- Empty state -->
         <div class="empty" id="empty-state">
-          <svg class="empty__icon" viewBox="0 0 48 48" aria-hidden="true">
-            <rect x="5" y="9" width="38" height="30" rx="4" />
-            <path d="M13 20l5 4-5 4M24 28h10" />
-          </svg>
+          <div class="empty__mark" aria-hidden="true">vw</div>
           <h2 class="empty__title" data-i18n="empty.title">No command selected</h2>
           <p class="empty__body" data-i18n="empty.body">
             Pick a command from the rail to build its parameters and run it.
@@ -125,9 +125,14 @@
 
           <!-- Working directory -->
           <div class="targetdir">
-            <label class="targetdir__label" for="targetdir-input" data-i18n="targetdir.label">
-              Working directory
-            </label>
+            <div class="targetdir__top">
+              <label class="targetdir__label section__title" for="targetdir-input" data-i18n="targetdir.label">
+                Working directory
+              </label>
+              <p class="targetdir__hint" data-i18n="targetdir.hint">
+                The command runs here, exactly as if you had opened a shell in this folder.
+              </p>
+            </div>
             <div class="targetdir__row">
               <input
                 type="text"
@@ -138,9 +143,6 @@
               />
               <button class="btn btn--ghost" id="btn-pick-dir" data-i18n="targetdir.browse">Browse</button>
             </div>
-            <p class="targetdir__hint" data-i18n="targetdir.hint">
-              The command runs here, exactly as if you had opened a shell in this folder.
-            </p>
           </div>
 
           <!-- Parameters -->

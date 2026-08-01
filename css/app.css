@@ -52,7 +52,7 @@ ul { list-style: none; }
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--vwsq-iris-300);
+  color: var(--vwsq-coral-400);
 }
 
 .titlebar__sub {
@@ -78,6 +78,34 @@ ul { list-style: none; }
 }
 
 .titlebar__controls { display: flex; -webkit-app-region: no-drag; }
+
+/* Signal strip — 2px of run state across the full width, readable from
+   peripheral vision without looking at the run bar. */
+.signalstrip {
+  flex: none;
+  height: 2px;
+  background: var(--vwsq-console-border-strong);
+  transition: background var(--vwsq-motion-ui);
+}
+
+.signalstrip--busy {
+  background: linear-gradient(
+    90deg,
+    var(--vwsq-iris-800) 0%,
+    var(--vwsq-iris-400) 50%,
+    var(--vwsq-iris-800) 100%
+  );
+  background-size: 220% 100%;
+  animation: vwsqStripSweep 1.8s linear infinite;
+}
+
+.signalstrip--ok { background: var(--vwsq-signal-online); }
+.signalstrip--fail { background: var(--vwsq-signal-alert); }
+
+@keyframes vwsqStripSweep {
+  from { background-position: 100% 0; }
+  to { background-position: -120% 0; }
+}
 
 .winbtn {
   width: 44px;
@@ -105,13 +133,18 @@ ul { list-style: none; }
    Warm rail — 15%
    ========================================================================== */
 
+/* Coral seam — the structural edge between the two regions, made deliberate.
+   1px line plus a soft bleed into the console side. */
 .rail {
   width: var(--vwsq-rail-w);
   flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--vwsq-warm-border-strong);
+  position: relative;
+  border-right: 1px solid rgba(255, 138, 107, 0.55);
+  box-shadow: 1px 0 18px -6px var(--vwsq-coral-glow);
+  z-index: 1;
 }
 
 .rail__search {
@@ -176,7 +209,30 @@ ul { list-style: none; }
   padding: 0 var(--vwsq-space-2) var(--vwsq-space-3);
 }
 
-.cat { margin-bottom: 2px; }
+/* Margin, not padding, so the gap stays outside the hover/active fill.
+   The spine is a 2px shade running the full height of the group. */
+.cat {
+  margin-bottom: var(--vwsq-space-3);
+  position: relative;
+  padding-left: 7px;
+}
+
+.cat:last-child { margin-bottom: 0; }
+
+.cat::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--cat-spine, var(--vwsq-warm-border-strong));
+  opacity: 0.55;
+  transition: opacity var(--vwsq-motion-ui);
+}
+
+.cat--open::before { opacity: 1; }
 
 .cat__head {
   width: 100%;
@@ -185,8 +241,9 @@ ul { list-style: none; }
   gap: var(--vwsq-space-2);
   padding: 6px var(--vwsq-space-2);
   border: 0;
+  border-bottom: 1px solid var(--vwsq-warm-border);
   background: transparent;
-  border-radius: var(--vwsq-radius-control);
+  border-radius: var(--vwsq-radius-control) var(--vwsq-radius-control) 0 0;
   cursor: pointer;
   font-family: var(--vwsq-font-mono);
   font-size: 10px;
@@ -407,6 +464,21 @@ ul { list-style: none; }
   stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
 }
 
+/* Monofett earns its keep here, at a size where the stencil actually reads. */
+.empty__mark {
+  font-family: var(--vwsq-font-display);
+  font-size: 84px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  background: linear-gradient(120deg, var(--vwsq-iris-400), var(--vwsq-coral-500));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0.85;
+  user-select: none;
+}
+
 .empty__title { font-size: 15px; font-weight: 600; color: var(--vwsq-console-text); }
 .empty__body { font-size: 12px; color: var(--vwsq-console-text-dim); max-width: 40ch; }
 
@@ -415,8 +487,8 @@ ul { list-style: none; }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--vwsq-space-5);
-  gap: var(--vwsq-space-4);
+  padding: var(--vwsq-space-4) var(--vwsq-space-5) var(--vwsq-space-5);
+  gap: var(--vwsq-space-3);
   overflow: hidden;
 }
 
@@ -428,9 +500,10 @@ ul { list-style: none; }
 
 .cmdhead__name {
   font-family: var(--vwsq-font-mono);
-  font-size: 19px;
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
   color: var(--vwsq-console-text-bright);
 }
 
@@ -444,9 +517,11 @@ ul { list-style: none; }
   color: var(--vwsq-console-text-dim);
 }
 
+/* Monofett was tried here and rejected: it is a stencil face built from
+   disconnected blocks and is unreadable below ~28px. Chips stay mono. */
 .chip {
   font-family: var(--vwsq-font-mono);
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -528,12 +603,21 @@ ul { list-style: none; }
 
 /* --- Working directory -------------------------------------------------- */
 
+/* Two lines total: [label + hint] over [input + browse]. The hint rides
+   alongside the label so the block never costs a third row. */
 .targetdir {
   flex: none;
-  padding: var(--vwsq-space-3) var(--vwsq-space-4);
+  padding: var(--vwsq-space-2) var(--vwsq-space-3);
   background: var(--vwsq-console-raised);
   border: 1px solid var(--vwsq-console-border);
   border-radius: var(--vwsq-radius-panel);
+}
+
+.targetdir__top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--vwsq-space-2);
+  margin-bottom: 5px;
 }
 
 .targetdir__label,
@@ -550,7 +634,18 @@ ul { list-style: none; }
 
 .targetdir__row { display: flex; gap: var(--vwsq-space-2); }
 .targetdir__input { flex: 1; min-width: 0; }
-.targetdir__hint { margin-top: 6px; font-size: 11px; color: var(--vwsq-console-text-dim); }
+
+.targetdir__label { margin-bottom: 0; flex: none; }
+
+.targetdir__hint {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--vwsq-console-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* --- Inputs ------------------------------------------------------------- */
 
@@ -584,7 +679,9 @@ textarea.input { resize: vertical; min-height: 60px; }
 
 /* --- Parameters --------------------------------------------------------- */
 
-.params { flex: none; max-height: 34vh; overflow-y: auto; }
+/* Params yield to the console: they scroll internally rather than pushing
+   output off-screen on commands with many parameters. */
+.params { flex: none; max-height: 28vh; overflow-y: auto; }
 
 .params__grid {
   display: grid;
@@ -770,7 +867,7 @@ textarea.input { resize: vertical; min-height: 60px; }
 
 .console {
   flex: 1;
-  min-height: 140px;
+  min-height: 220px;
   display: flex;
   flex-direction: column;
   background: var(--vwsq-console-sunken);
@@ -834,9 +931,26 @@ textarea.input { resize: vertical; min-height: 60px; }
   tab-size: 4;
 }
 
+/* Idle console reads as a terminal waiting, not an empty box. */
 .console__out:empty::before {
-  content: attr(data-empty);
-  color: var(--vwsq-console-text-dim);
+  content: "PS " attr(data-cwd) "> ";
+  color: var(--vwsq-iris-300);
+  opacity: 0.75;
+}
+
+.console__out:empty::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  vertical-align: text-bottom;
+  background: var(--vwsq-iris-400);
+  animation: vwsqCaret 1.1s steps(1) infinite;
+}
+
+@keyframes vwsqCaret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
 
 /* ANSI classes emitted by ansi.js */
