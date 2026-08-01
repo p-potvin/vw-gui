@@ -39,6 +39,17 @@ tooling**, not a shipped product surface.
    alongside the Administrator check and human confirmation. If you are an agent
    working in this repo, you cannot run those commands here either.
 
+5. **Never let the exit sentinel reach the terminal.** `vwg-run.ps1` prints
+   `<<VWG:EXIT:<job>:<code>>>` as its last line and `main.js` strips it from the
+   stream. It must stay emitted by the runner, never appended to the typed
+   command line — the shell echoes what is typed, and an echoed sentinel would
+   register as a completed run before the command had even started.
+
+6. **Do not call `term.kill()` from node-pty.** On Windows it loads
+   `conpty_console_list_agent`, which throws `AttachConsole failed` and takes
+   the process down. Use `killTree` / `killChildrenOf` in `main.js`, which shell
+   out to `taskkill`.
+
 ## Styling
 
 This repo uses **vaultwares² (vaultwares-square)**, defined locally in

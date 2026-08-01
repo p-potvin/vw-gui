@@ -26,7 +26,6 @@
     newBtn: document.getElementById("btn-new-command"),
     historyBtn: document.getElementById("btn-history"),
     strip: document.getElementById("signal-strip"),
-    consoleOut: document.getElementById("console-out"),
   };
 
   /** Run state on the titlebar strip: "", "busy", "ok", "fail". */
@@ -57,6 +56,7 @@
     }
 
     wire();
+    await bootTerminal();
   }
 
   async function loadRegistry(selectName) {
@@ -98,7 +98,7 @@
     els.path.textContent = cmd.ScriptPath || "";
 
     // Examples
-    const examples = cmd.Examples || [];
+    const examples = (cmd.Examples || []).map(U.normalizeExample);
     els.examplesSection.hidden = examples.length === 0;
     els.examplesList.innerHTML = "";
     for (const ex of examples) {
@@ -147,10 +147,6 @@
     els.targetDir.value = dir || "";
     form.setCwdPlaceholder(dir);
     prefs.targetDir = dir || "";
-    // Feeds the idle console's "PS <cwd|>" prompt. Long paths are trimmed to
-    // the leaf so the caret line does not wrap.
-    const leaf = dir ? dir.split(/[\\/]/).filter(Boolean).pop() : "";
-    els.consoleOut.setAttribute("data-cwd", leaf || "");
     savePrefs();
     setRunEnabled();
   }
@@ -196,15 +192,25 @@
   }
 
   async function launch({ params, cwd, background }) {
+    // Background jobs get a session of their own; the foreground one is shared
+    // and persistent so its scrollback and shell state survive between runs.
+    const sessionId = background ? jobs.nextBackgroundSessionId() : term.FOREGROUND;
+
+    if (background) {
+      await term.ensure(sessionId, { cwd, background: true });
+    } else {
+      await jobs.ensureForeground(cwd);
+    }
+
     const handle = await window.vwg.startJob({
+      sessionId,
       scriptPath: current.ScriptPath,
       params,
       cwd,
-      background,
       commandName: current.Name,
     });
 
-    jobs.add(handle);
+    jobs.add(handle, { commandName: current.Name, background, cwd, sessionId });
 
     if (background) {
       toast.info(`${current.Name} · ${i18n.t("run.queuedBackground")}`);
@@ -310,6 +316,17 @@
   async function stop() {
     const job = jobs.foregroundJob();
     if (job) await jobs.stop(job.id);
+  }
+
+  /** Boot the persistent foreground shell so it is warm before the first run. */
+  async function bootTerminal() {
+    try {
+      await jobs.ensureForeground(els.targetDir.value || vwRoot);
+      term.show(term.FOREGROUND);
+      term.refit();
+    } catch (err) {
+      toast.error(i18n.t("common.error", { err: err.message }), 10000);
+    }
   }
 
   // jobs.js decides ownership, so a background job finishing never touches

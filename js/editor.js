@@ -340,7 +340,7 @@
             })),
           Examples: examplesInput.value
             .split("\n")
-            .map((s) => s.trim())
+            .map((s) => U.normalizeExample(s))
             .filter(Boolean),
         };
 

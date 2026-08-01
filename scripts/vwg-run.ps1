@@ -20,7 +20,13 @@ param(
     [string]$ScriptPath,
 
     # Base64 of a UTF-8 JSON object: { "ParamName": value, ... }
-    [string]$ArgsB64 = ""
+    [string]$ArgsB64 = "",
+
+    # When set, a completion sentinel is printed as the very last line so the
+    # GUI can recover the exit code from a terminal stream. The sentinel is
+    # emitted here rather than appended to the typed command line, so the
+    # shell's own echo of that line can never be mistaken for completion.
+    [string]$JobId = ""
 )
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -72,9 +78,17 @@ if (-not [string]::IsNullOrWhiteSpace($ArgsB64)) {
     }
 }
 
+function Complete-Run {
+    param([int]$Code)
+    if ($JobId) {
+        [Console]::Out.WriteLine("<<VWG:EXIT:${JobId}:${Code}>>")
+    }
+    exit $Code
+}
+
 if (-not (Test-Path -LiteralPath $ScriptPath)) {
     Write-Host "Script file not found: $ScriptPath" -ForegroundColor Red
-    exit 127
+    Complete-Run 127
 }
 
 # --- Execute ---------------------------------------------------------------
@@ -93,7 +107,7 @@ try {
 catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
     if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray }
-    exit 1
+    Complete-Run 1
 }
 
 $code = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
@@ -104,4 +118,4 @@ if ($code -eq 0) {
 else {
     Write-Host ">>> Exit code: $code" -ForegroundColor Red
 }
-exit $code
+Complete-Run $code

@@ -467,7 +467,7 @@ ul { list-style: none; }
 /* Monofett earns its keep here, at a size where the stencil actually reads. */
 .empty__mark {
   font-family: var(--vwsq-font-display);
-  font-size: 84px;
+  font-size: 64px;
   line-height: 1;
   letter-spacing: 0.08em;
   text-transform: lowercase;
@@ -517,23 +517,22 @@ ul { list-style: none; }
   color: var(--vwsq-console-text-dim);
 }
 
-/* Monofett was tried here and rejected: it is a stencil face built from
-   disconnected blocks and is unreadable below ~28px. Chips stay mono. */
+/* Chips are Monofett with no fill: the stencil letterforms are dense enough
+   to carry the label themselves, so a pill background would only fight them. */
 .chip {
-  font-family: var(--vwsq-font-mono);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: var(--vwsq-radius-pill);
+  font-family: var(--vwsq-font-display);
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+  padding: 0;
+  background: none;
   color: var(--vwsq-console-text-secondary);
-  background: var(--vwsq-console-elevated);
   white-space: nowrap;
 }
 
-.chip--alert { color: var(--vwsq-signal-alert); background: var(--vwsq-signal-alert-soft); }
-.chip--warning { color: var(--vwsq-signal-warning); background: var(--vwsq-signal-warning-soft); }
+.chip--alert { color: var(--vwsq-signal-alert); }
+.chip--warning { color: var(--vwsq-signal-warning); }
 
 /* --- Buttons ------------------------------------------------------------ */
 
@@ -916,41 +915,47 @@ textarea.input { resize: vertical; min-height: 60px; }
 
 .console__follow input { accent-color: var(--vwsq-iris-500); width: 12px; height: 12px; cursor: pointer; }
 
-.console__out {
+/* Terminal host — one .term per PTY session, only the watched one visible. */
+.terminal-host {
   flex: 1;
   min-height: 0;
-  margin: 0;
-  padding: var(--vwsq-space-3);
-  overflow: auto;
+  position: relative;
+  padding: var(--vwsq-space-2) var(--vwsq-space-3);
+}
+
+.term {
+  position: absolute;
+  inset: var(--vwsq-space-2) var(--vwsq-space-3);
+}
+
+.term .xterm-viewport {
+  background: transparent !important;
+  scrollbar-width: thin;
+}
+
+.term .xterm {
+  height: 100%;
+}
+
+.console__live {
   font-family: var(--vwsq-font-mono);
-  font-size: 11.5px;
-  line-height: 1.55;
-  color: var(--vwsq-console-text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  tab-size: 4;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vwsq-signal-online);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-/* Idle console reads as a terminal waiting, not an empty box. */
-.console__out:empty::before {
-  content: "PS " attr(data-cwd) "> ";
-  color: var(--vwsq-iris-300);
-  opacity: 0.75;
-}
-
-.console__out:empty::after {
+.console__live::before {
   content: "";
-  display: inline-block;
-  width: 7px;
-  height: 1em;
-  vertical-align: text-bottom;
-  background: var(--vwsq-iris-400);
-  animation: vwsqCaret 1.1s steps(1) infinite;
-}
-
-@keyframes vwsqCaret {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: vwsqLedPulse 4s ease-in-out infinite;
 }
 
 /* ANSI classes emitted by ansi.js */

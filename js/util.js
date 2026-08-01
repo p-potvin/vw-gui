@@ -79,6 +79,13 @@
     return /^(targetdir|directory|location|d)$/i.test(String(name || "").trim());
   }
 
+  /** Examples are shown as CLI lines, so they always lead with "vw ". */
+  function normalizeExample(text) {
+    const s = String(text || "").trim();
+    if (!s) return s;
+    return /^vw\s/i.test(s) ? s : `vw ${s}`;
+  }
+
   function fmtDuration(ms) {
     if (ms === null || ms === undefined) return "";
     const s = Math.floor(ms / 1000);
@@ -118,7 +125,7 @@
 
   window.U = {
     $, $$, el, icon, ICONS,
-    isPathParam, wantsFolder, isCwdParam,
+    isPathParam, wantsFolder, isCwdParam, normalizeExample,
     fmtDuration, fmtClock, fmtStamp, escapeHtml, debounce,
   };
 })();

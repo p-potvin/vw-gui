@@ -1,90 +1,50 @@
 /* ==========================================================================
-   vw-gui :: jobs and output console
+   vw-gui :: jobs
    --------------------------------------------------------------------------
-   The foreground slot is serial: one command at a time, streamed live.
-   Ticking "Run in background" diverts a job to the rail queue so a long media
-   pipeline does not block the next quick command. Clicking a background job
-   swaps the console to its stream; clicking it again returns to foreground.
+   The foreground session is persistent and serial: one command at a time, in a
+   live pwsh you can also type into. Ticking "Run in background" gives the job
+   its own session so a long pipeline never blocks the next quick command.
+
+   Clicking a background job swaps the visible terminal to its session; clicking
+   again returns to the foreground.
    ========================================================================== */
 
 (function () {
-  const out = document.getElementById("console-out");
   const sourceTag = document.getElementById("console-source");
-  const followBox = document.getElementById("follow-output");
   const jobsSection = document.getElementById("jobs-section");
   const jobsList = document.getElementById("jobs-list");
   const jobsCount = document.getElementById("jobs-count");
 
-  const MAX_NODES = 4000; // scrollback ceiling
-
-  /** id -> job record */
+  /** jobId -> job record */
   const jobs = new Map();
 
-  let foregroundId = null;   // the serial slot
-  let watchingId = null;     // whose stream the console shows
+  let foregroundJobId = null;
+  let bgCounter = 0;
   let tickTimer = null;
   let foregroundExitHandler = null;
 
-  out.setAttribute("data-empty", i18n.t("console.empty"));
+  /* ---- Session helpers -------------------------------------------------- */
 
-  /* ---- Console --------------------------------------------------------- */
-
-  function clearConsole() {
-    out.innerHTML = "";
+  async function ensureForeground(cwd) {
+    await term.ensure(term.FOREGROUND, { cwd });
+    if (!term.visibleId) term.show(term.FOREGROUND);
   }
 
-  function trim() {
-    while (out.childNodes.length > MAX_NODES) out.removeChild(out.firstChild);
+  function nextBackgroundSessionId() {
+    return `session-bg-${++bgCounter}`;
   }
 
-  function append(text, stream) {
-    const job = jobs.get(watchingId);
-    const state = job
-      ? stream === "stderr"
-        ? job.errState
-        : job.outState
-      : ANSI.newState({ stderr: stream === "stderr" });
+  /* ---- Lifecycle -------------------------------------------------------- */
 
-    const atBottom = out.scrollTop + out.clientHeight >= out.scrollHeight - 40;
-    out.appendChild(ANSI.render(text, state));
-    trim();
-    if (followBox.checked && atBottom) out.scrollTop = out.scrollHeight;
-  }
-
-  /** Repaint the console from a job's replay buffer. */
-  async function watch(id) {
-    watchingId = id;
-    clearConsole();
-
-    const job = jobs.get(id);
-    sourceTag.textContent = job && job.background ? job.commandName : "";
-    sourceTag.hidden = !(job && job.background);
-
-    if (!job) return;
-
-    const { buffer } = await window.vwg.jobBuffer({ id });
-    const state = ANSI.newState();
-    if (buffer) {
-      out.appendChild(ANSI.render(buffer, state));
-      trim();
-      out.scrollTop = out.scrollHeight;
-    }
-    job.outState = state;
-    render();
-  }
-
-  /* ---- Job lifecycle --------------------------------------------------- */
-
-  function add(handle) {
+  function add(handle, { commandName, background, cwd, sessionId }) {
     const job = {
-      id: handle.id,
-      commandName: handle.commandName,
-      background: handle.background,
-      cwd: handle.cwd,
-      startedAt: handle.startedAt,
+      id: handle.jobId,
+      sessionId,
+      commandName,
+      background: !!background,
+      cwd,
+      startedAt: handle.startedAt || Date.now(),
       exitCode: null,
-      outState: ANSI.newState(),
-      errState: ANSI.newState({ stderr: true }),
     };
     jobs.set(job.id, job);
 
@@ -92,17 +52,9 @@
       render();
       ensureTicker();
     } else {
-      foregroundId = job.id;
-      clearConsole();
-      watchingId = job.id;
-      sourceTag.hidden = true;
+      foregroundJobId = job.id;
     }
     return job;
-  }
-
-  function onOutput({ id, stream, text }) {
-    if (id === watchingId) append(text, stream);
-    // Background jobs the console is not watching keep buffering in main.
   }
 
   function onExit({ id, exitCode, durationMs }) {
@@ -113,10 +65,8 @@
     job.durationMs = durationMs;
     job.endedAt = Date.now();
 
-    // Capture ownership before clearing, so the run bar only reacts to its
-    // own job and not to a background one finishing.
-    const wasForeground = id === foregroundId;
-    if (wasForeground) foregroundId = null;
+    const wasForeground = id === foregroundJobId;
+    if (wasForeground) foregroundJobId = null;
     if (wasForeground && typeof foregroundExitHandler === "function") {
       foregroundExitHandler({ id, exitCode, durationMs });
     }
@@ -124,24 +74,20 @@
     render();
     if (!hasRunningBackground()) stopTicker();
 
-    // Background completions are easy to miss; surface them.
     if (job.background) {
       const label = `${job.commandName} · ${U.fmtDuration(durationMs)}`;
       if (exitCode === 0) toast.success(`${label} · ${i18n.t("run.done")}`);
       else toast.error(`${label} · ${i18n.t("run.failed", { code: exitCode })}`);
-    }
 
-    // Keep finished background jobs listed briefly so the result is readable.
-    if (job.background) {
-      setTimeout(() => {
+      // Keep the finished job listed long enough to read the result, then
+      // retire its session so idle shells do not accumulate.
+      setTimeout(async () => {
         jobs.delete(id);
-        if (watchingId === id) {
-          watchingId = foregroundId;
-          sourceTag.hidden = true;
-          sourceTag.textContent = "";
-        }
+        if (term.visibleId === job.sessionId) term.show(term.FOREGROUND);
+        await term.dispose(job.sessionId);
+        updateSourceTag();
         render();
-      }, 30000);
+      }, 45000);
     }
   }
 
@@ -151,18 +97,38 @@
   }
 
   function isForegroundBusy() {
-    return foregroundId !== null;
+    return foregroundJobId !== null;
   }
 
   function foregroundJob() {
-    return foregroundId ? jobs.get(foregroundId) : null;
+    return foregroundJobId ? jobs.get(foregroundJobId) : null;
   }
 
-  async function stop(id) {
-    await window.vwg.stopJob({ id });
+  async function stop(jobId) {
+    const job = jobs.get(jobId);
+    if (!job) return;
+    await window.vwg.stopJob({ sessionId: job.sessionId });
   }
 
-  /* ---- Rail rendering -------------------------------------------------- */
+  /* ---- Watching --------------------------------------------------------- */
+
+  function updateSourceTag() {
+    const watching = Array.from(jobs.values()).find(
+      (j) => j.background && j.sessionId === term.visibleId
+    );
+    sourceTag.textContent = watching ? watching.commandName : "";
+    sourceTag.hidden = !watching;
+  }
+
+  function toggleWatch(jobId) {
+    const job = jobs.get(jobId);
+    if (!job) return;
+    term.show(term.visibleId === job.sessionId ? term.FOREGROUND : job.sessionId);
+    updateSourceTag();
+    render();
+  }
+
+  /* ---- Rail rendering --------------------------------------------------- */
 
   function render() {
     const list = Array.from(jobs.values()).filter((j) => j.background);
@@ -173,6 +139,8 @@
 
     for (const job of list) {
       const running = job.exitCode === null;
+      const watching = term.visibleId === job.sessionId;
+
       const led = U.el("span", {
         class: "vwsq-led" + (running ? " vwsq-led--live" : ""),
       });
@@ -187,61 +155,54 @@
         : U.fmtDuration(job.durationMs);
 
       const meta = running
-        ? elapsed + (watchingId === job.id ? " · " + i18n.t("jobs.watching") : "")
+        ? elapsed + (watching ? " · " + i18n.t("jobs.watching") : "")
         : job.exitCode === 0
         ? `${i18n.t("run.done")} · ${elapsed}`
         : `${i18n.t("run.failed", { code: job.exitCode })} · ${elapsed}`;
 
-      const row = U.el(
-        "li",
-        {
-          class: "job" + (watchingId === job.id ? " job--watching" : ""),
-          tabindex: "0",
-          role: "button",
-          "aria-label": `${job.commandName}, ${meta}`,
-          onclick: () => toggleWatch(job.id),
-          onkeydown: (e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              toggleWatch(job.id);
-            }
+      jobsList.appendChild(
+        U.el(
+          "li",
+          {
+            class: "job" + (watching ? " job--watching" : ""),
+            tabindex: "0",
+            role: "button",
+            "aria-label": `${job.commandName}, ${meta}`,
+            onclick: () => toggleWatch(job.id),
+            onkeydown: (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggleWatch(job.id);
+              }
+            },
           },
-        },
-        [
-          led,
-          U.el("div", { class: "job__body" }, [
-            U.el("div", { class: "job__name", text: job.commandName }),
-            U.el("div", { class: "job__meta", text: meta }),
-          ]),
-          running
-            ? U.el(
-                "button",
-                {
-                  class: "job__stop",
-                  type: "button",
-                  title: i18n.t("jobs.stop"),
-                  "aria-label": `Stop ${job.commandName}`,
-                  onclick: (e) => {
-                    e.stopPropagation();
-                    stop(job.id);
+          [
+            led,
+            U.el("div", { class: "job__body" }, [
+              U.el("div", { class: "job__name", text: job.commandName }),
+              U.el("div", { class: "job__meta", text: meta }),
+            ]),
+            running
+              ? U.el(
+                  "button",
+                  {
+                    class: "job__stop",
+                    type: "button",
+                    title: i18n.t("jobs.stop"),
+                    "aria-label": `Stop ${job.commandName}`,
+                    onclick: (e) => {
+                      e.stopPropagation();
+                      stop(job.id);
+                    },
                   },
-                },
-                [U.icon(U.ICONS.stop)]
-              )
-            : null,
-        ]
+                  [U.icon(U.ICONS.stop)]
+                )
+              : null,
+          ]
+        )
       );
-
-      jobsList.appendChild(row);
     }
   }
-
-  function toggleWatch(id) {
-    if (watchingId === id) watch(foregroundId);
-    else watch(id);
-  }
-
-  /* ---- Elapsed ticker -------------------------------------------------- */
 
   function ensureTicker() {
     if (tickTimer) return;
@@ -254,27 +215,26 @@
     tickTimer = null;
   }
 
-  /* ---- Console tools --------------------------------------------------- */
+  /* ---- Console tools ---------------------------------------------------- */
 
-  document.getElementById("btn-clear-output").addEventListener("click", clearConsole);
+  document.getElementById("btn-clear-output").addEventListener("click", () => term.clear());
 
   document.getElementById("btn-copy-output").addEventListener("click", async () => {
-    await navigator.clipboard.writeText(ANSI.strip(out.textContent || ""));
+    await navigator.clipboard.writeText(term.selectionOrAll());
     toast.success(i18n.t("console.copied"));
   });
 
-  window.vwg.onJobOutput(onOutput);
   window.vwg.onJobExit(onExit);
 
   window.jobs = {
     add,
     stop,
     render,
-    watch,
+    ensureForeground,
+    nextBackgroundSessionId,
+    updateSourceTag,
     isForegroundBusy,
     foregroundJob,
-    clearConsole,
     set onForegroundExit(fn) { foregroundExitHandler = fn; },
-    get watchingId() { return watchingId; },
   };
 })();

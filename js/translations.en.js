@@ -60,11 +60,12 @@ window.VWG_STRINGS_EN = {
   "run.scriptMissing": "This command's script file does not exist on disk.",
 
   "console.title": "Output",
-  "console.follow": "Follow",
+  "console.live": "live pwsh",
   "console.copy": "Copy output",
   "console.clear": "Clear output",
-  "console.empty": "Output will appear here.",
   "console.copied": "Output copied to clipboard.",
+
+  "validate.extWarning": "‘.{ext}’ is unusual here — expected {list}…",
 
   "destructive.title": "Destructive command",
   "destructive.warn":

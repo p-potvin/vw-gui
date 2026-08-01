@@ -8,6 +8,7 @@
       content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; img-src 'self' data:;"
     />
     <title>vw</title>
+    <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css" />
     <link rel="stylesheet" href="css/vaultwares-square.css" />
     <link rel="stylesheet" href="css/app.css" />
   </head>
@@ -93,7 +94,7 @@
       <main class="main" id="main">
         <!-- Empty state -->
         <div class="empty" id="empty-state">
-          <div class="empty__mark" aria-hidden="true">vw</div>
+          <div class="empty__mark" aria-hidden="true">vw-gui</div>
           <h2 class="empty__title" data-i18n="empty.title">No command selected</h2>
           <p class="empty__body" data-i18n="empty.body">
             Pick a command from the rail to build its parameters and run it.
@@ -187,10 +188,7 @@
                 <span class="console__source" id="console-source"></span>
               </h2>
               <div class="console__tools">
-                <label class="console__follow">
-                  <input type="checkbox" id="follow-output" checked />
-                  <span data-i18n="console.follow">Follow</span>
-                </label>
+                <span class="console__live" data-i18n="console.live">live pwsh</span>
                 <button class="iconbtn" id="btn-copy-output" data-i18n-attr="title:console.copy" aria-label="Copy output">
                   <svg viewBox="0 0 16 16" aria-hidden="true">
                     <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5v-2a1 1 0 00-1-1h-6a1 1 0 00-1 1v6a1 1 0 001 1h2" />
@@ -201,7 +199,7 @@
                 </button>
               </div>
             </div>
-            <pre class="console__out" id="console-out" role="log" aria-live="polite" aria-label="Command output"></pre>
+            <div class="terminal-host" id="terminal-host" aria-label="PowerShell terminal"></div>
           </section>
         </div>
       </main>
@@ -216,13 +214,17 @@
     <!-- Context menu host ----------------------------------------------- -->
     <div class="ctxmenu" id="ctxmenu" hidden role="menu"></div>
 
+    <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+    <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+
     <script src="js/translations.en.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/util.js"></script>
-    <script src="js/ansi.js"></script>
+    <script src="js/extensions.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/modal.js"></script>
     <script src="js/form.js"></script>
+    <script src="js/terminal.js"></script>
     <script src="js/jobs.js"></script>
     <script src="js/rail.js"></script>
     <script src="js/editor.js"></script>

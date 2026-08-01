@@ -22,6 +22,17 @@ Last refreshed: Fri, 31 Jul 2026 08:05
       `ValidSet` is missing. A "re-scan and reconcile" action could surface these
       across all 71 commands.
 
+## Validation decisions (confirmed 31 Jul 2026)
+
+- `record-change -Metrics` and `-Flags` are **unused fields**. Basic
+  `key:value` shape checking is sufficient — do not build a JSON schema.
+- File-extension hints are **images and videos mostly**, kept in
+  `js/extensions.js`. `.ts` is deliberately excluded from the video list
+  despite being a valid transport-stream extension, because it collides with
+  TypeScript in this workspace.
+- All extension checking is **soft**: warn, never block. The `vw` CLI does the
+  real validation. The GUI only catches inattention and reminds about formats.
+
 ## Next
 
 - [ ] QC translations (`js/translations.qc.js`) + a language toggle.

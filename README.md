@@ -64,35 +64,61 @@ hex outside that file.
 ## Architecture
 
 ```
-main.js                      Electron main — spawning, registry IO, dialogs
+main.js                      Electron main — PTY sessions, registry IO, dialogs
 preload.js                   contextBridge; renderer never sees fs/child_process
 js/                          renderer modules (vanilla, no framework)
   app.js                     orchestration, run flow, destructive gate
-  rail.js  form.js  jobs.js  tree, dynamic form, job queue + console
+  terminal.js                xterm instances, one per PTY session
+  rail.js  form.js  jobs.js  tree, dynamic form, job queue
   editor.js  history.js      command CRUD, persisted run history
-  ansi.js  modal.js  ...     ANSI renderer, dialogs, helpers
+  extensions.js              file-type hints for pickers + soft validation
+  modal.js  toast.js  util.js  dialogs, notifications, helpers
 scripts/                     PowerShell backend
   vwg-read-registry.ps1      executes vw-commands.ps1 -> JSON
   vwg-write-registry.ps1     surgical insert/update/delete + backup + rollback
   vwg-parse-params.ps1       AST introspection of an uploaded .ps1
-  vwg-run.ps1                argument splatting + ANSI preservation
+  vwg-run.ps1                argument splatting + exit sentinel
 ```
 
-### Three things worth knowing
+### Four things worth knowing
 
-1. **Arguments are splatted as a hashtable, not an array.** Array splatting
+1. **Everything runs in a real PowerShell.** The output pane is an xterm bound
+   to a persistent `pwsh` PTY (node-pty + conpty). Commands are typed into that
+   live shell, so anything interactive works — `Read-Host`, credential prompts,
+   ffmpeg's overwrite question, Ctrl+C. You can also just type in it.
+
+2. **Exit codes come back through a sentinel.** A terminal has no exit channel,
+   so `vwg-run.ps1` prints `<<VWG:EXIT:<job>:<code>>>` as its final line. The
+   main process strips that marker from the stream before it reaches the
+   terminal, so it is never displayed. The sentinel is emitted by the runner
+   rather than appended to the typed command line, so the shell's own echo of
+   that line can never be mistaken for completion.
+
+3. **Arguments are splatted as a hashtable, not an array.** Array splatting
    binds positionally in PowerShell, so `@('-Count','4')` passes `-Count` as a
    value. Parameters travel base64-encoded to sidestep shell quoting.
 
-2. **`Write-Host` colour is re-emitted by a proxy.** PowerShell strips ANSI when
-   stdout is redirected, which it always is under Electron. `vwg-run.ps1`
-   overrides `Write-Host` so the console shows what a terminal would.
+4. **The destructive gate is enforced by the GUI.** It applies the same three
+   checks as `vw.ps1` — AI-environment refusal, Administrator requirement,
+   explicit confirmation — then invokes the target script directly.
 
-3. **The destructive gate is re-implemented, not reused.** `vw.ps1`'s gate calls
-   `Read-Host` and refuses outright when `[Console]::IsInputRedirected` is true —
-   always the case with piped stdio. The GUI enforces the same three checks
-   (AI-environment refusal, Administrator requirement, explicit confirmation)
-   and then invokes the target script directly.
+   (Historical note: this was originally *required*, because `vw.ps1`'s gate
+   calls `Read-Host` and refuses when `[Console]::IsInputRedirected` is true,
+   which it always was under piped stdio. Inside a PTY that is no longer true,
+   so the CLI's own gate would now function. The GUI keeps its own gate anyway,
+   so the confirmation is a real dialog rather than a typed line.)
+
+### Sessions
+
+| Session | Lifetime | Used by |
+|---|---|---|
+| `session-main` | persistent, created at boot | every foreground run; free typing |
+| `session-bg-N` | per job, retired ~45s after it ends | one background job each |
+
+Killing a run sends Ctrl+C first and only escalates to killing the child process
+tree if the job is still active a moment later — a PowerShell script often
+cleans up on cancellation, and killing the shell outright would destroy the
+session along with it.
 
 ## QA flags
 

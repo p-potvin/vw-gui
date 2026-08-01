@@ -11,6 +11,7 @@ const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
 const os = require("os");
+const pty = require("node-pty");
 
 // --- Configuration ---------------------------------------------------------
 
@@ -86,12 +87,20 @@ async function writeJson(file, data) {
 // --- Running jobs ----------------------------------------------------------
 
 /**
- * Every spawned command lives here until it exits, keyed by job id.
- * The foreground slot is serial by convention (enforced in the renderer);
- * background jobs run alongside it.
+ * Terminal sessions. Every command runs inside a real pwsh PTY, so anything
+ * that prompts -- Read-Host, credential requests, ffmpeg's overwrite question,
+ * a Ctrl+C -- behaves exactly as it does in a terminal.
+ *
+ * The foreground session is persistent and serial. Each background job gets
+ * its own session so a long pipeline never blocks the next quick command.
  */
-const jobs = new Map();
-let jobCounter = 0;
+const sessions = new Map();
+let sessionCounter = 0;
+
+// A run in progress, keyed by session id -> job metadata awaiting its sentinel.
+const activeRuns = new Map();
+
+const SENTINEL = /<<VWG:EXIT:([A-Za-z0-9-]+):(-?\d+)>>\r?\n?/;
 
 function send(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -99,74 +108,124 @@ function send(channel, payload) {
   }
 }
 
-function startJob({ scriptPath, params, cwd, background, commandName }) {
-  const id = `job-${++jobCounter}`;
-  const argsB64 = toB64(params || {});
-
-  const child = spawn("pwsh", pwshArgs(RUNNER, ["-ScriptPath", scriptPath, "-ArgsB64", argsB64]), {
-    cwd: cwd || VW_ROOT,
-    windowsHide: true,
-    env: { ...process.env },
-  });
-
-  const job = {
-    id,
-    commandName,
-    background: !!background,
-    cwd: cwd || VW_ROOT,
-    params: params || {},
-    startedAt: Date.now(),
-    child,
-    exitCode: null,
-    buffer: "",
-  };
-  jobs.set(id, job);
-
-  const emit = (stream) => (data) => {
-    const text = data.toString("utf8");
-    job.buffer += text;
-    // Keep the replay buffer bounded; the console UI trims too.
-    if (job.buffer.length > 400000) job.buffer = job.buffer.slice(-300000);
-    send("job:output", { id, stream, text });
-  };
-
-  child.stdout.on("data", emit("stdout"));
-  child.stderr.on("data", emit("stderr"));
-
-  child.on("error", (err) => {
-    send("job:output", { id, stream: "stderr", text: `\n${err.message}\n` });
-  });
-
-  child.on("close", (code) => {
-    job.exitCode = code;
-    job.endedAt = Date.now();
-    send("job:exit", { id, exitCode: code, durationMs: job.endedAt - job.startedAt });
-    recordHistory(job).catch(() => {});
-    // Keep the record briefly so the renderer can still read the buffer.
-    setTimeout(() => jobs.delete(id), 60000);
-  });
-
-  return {
-    id,
-    commandName,
-    background: job.background,
-    cwd: job.cwd,
-    startedAt: job.startedAt,
-  };
+/** Quote a value for a PowerShell single-quoted string literal. */
+function psQuote(value) {
+  return "'" + String(value).replace(/'/g, "''") + "'";
 }
 
-async function recordHistory(job) {
+function createSession({ id, cwd, cols, rows }) {
+  const term = pty.spawn("pwsh.exe", ["-NoLogo", "-NoProfile"], {
+    name: "xterm-256color",
+    cols: cols || 120,
+    rows: rows || 30,
+    cwd: cwd || VW_ROOT,
+    env: { ...process.env },
+    useConpty: true,
+  });
+
+  const session = {
+    id,
+    term,
+    cwd: cwd || VW_ROOT,
+    buffer: "",
+    alive: true,
+  };
+  sessions.set(id, session);
+
+  term.onData((data) => {
+    let text = data;
+
+    // Pull the completion sentinel out of the stream before it reaches the
+    // terminal, so the user never sees the marker.
+    const match = text.match(SENTINEL);
+    if (match) {
+      text = text.replace(SENTINEL, "");
+      finishRun(id, match[1], parseInt(match[2], 10));
+    }
+
+    if (text) {
+      session.buffer += text;
+      if (session.buffer.length > 600000) {
+        session.buffer = session.buffer.slice(-450000);
+      }
+      send("pty:data", { id, data: text });
+    }
+  });
+
+  term.onExit(({ exitCode }) => {
+    session.alive = false;
+    // If the shell itself died mid-run, close out the job.
+    const run = activeRuns.get(id);
+    if (run) finishRun(id, run.jobId, exitCode == null ? 1 : exitCode);
+    send("pty:closed", { id, exitCode });
+  });
+
+  return session;
+}
+
+function finishRun(sessionId, jobId, exitCode) {
+  const run = activeRuns.get(sessionId);
+  if (!run || run.jobId !== jobId) return;
+  activeRuns.delete(sessionId);
+
+  run.exitCode = exitCode;
+  run.endedAt = Date.now();
+
+  send("job:exit", {
+    id: jobId,
+    sessionId,
+    exitCode,
+    durationMs: run.endedAt - run.startedAt,
+  });
+
+  recordHistory(run).catch(() => {});
+}
+
+/**
+ * Type a command into a session. Three statements on one line:
+ * change directory, invoke the runner, and let the runner print the sentinel.
+ */
+function runInSession({ sessionId, scriptPath, params, cwd, commandName }) {
+  const session = sessions.get(sessionId);
+  if (!session || !session.alive) throw new Error(`Session ${sessionId} is not running`);
+
+  const jobId = `job-${++sessionCounter}`;
+  const argsB64 = toB64(params || {});
+
+  activeRuns.set(sessionId, {
+    jobId,
+    sessionId,
+    commandName,
+    params: params || {},
+    cwd,
+    startedAt: Date.now(),
+    exitCode: null,
+    background: session.background,
+  });
+
+  const line =
+    `Set-Location -LiteralPath ${psQuote(cwd)}; ` +
+    `& ${psQuote(RUNNER)} -ScriptPath ${psQuote(scriptPath)} ` +
+    `-ArgsB64 ${psQuote(argsB64)} -JobId ${psQuote(jobId)}\r`;
+
+  session.term.write(line);
+  session.cwd = cwd;
+
+  return { jobId, sessionId, startedAt: Date.now() };
+}
+
+async function recordHistory(run) {
   const history = await readJson(HISTORY_FILE, []);
   history.unshift({
-    id: job.id,
-    commandName: job.commandName,
-    params: job.params,
-    cwd: job.cwd,
-    background: job.background,
-    exitCode: job.exitCode,
-    startedAt: job.startedAt,
-    endedAt: job.endedAt,
-    durationMs: (job.endedAt || Date.now()) - job.startedAt,
+    id: run.jobId,
+    commandName: run.commandName,
+    params: run.params,
+    cwd: run.cwd,
+    background: !!run.background,
+    exitCode: run.exitCode,
+    startedAt: run.startedAt,
+    endedAt: run.endedAt,
+    durationMs: (run.endedAt || Date.now()) - run.startedAt,
   });
   await writeJson(HISTORY_FILE, history.slice(0, HISTORY_LIMIT));
 }
@@ -174,6 +233,10 @@ async function recordHistory(job) {
 /**
  * Kill a process tree. PowerShell scripts routinely spawn ffmpeg/python
  * grandchildren, so killing only the direct child orphans real work.
+ *
+ * node-pty's own term.kill() is avoided throughout: on Windows it loads
+ * conpty_console_list_agent, which throws "AttachConsole failed" and takes
+ * the process down with it.
  */
 function killTree(pid) {
   return new Promise((resolve) => {
@@ -181,6 +244,28 @@ function killTree(pid) {
     killer.on("close", () => resolve(true));
     killer.on("error", () => resolve(false));
   });
+}
+
+/** Kill everything below a pid, leaving the pid itself running. */
+function killChildrenOf(pid) {
+  return new Promise((resolve) => {
+    const script =
+      `Get-CimInstance Win32_Process -Filter "ParentProcessId=${pid}" | ` +
+      `ForEach-Object { taskkill /PID $($_.ProcessId) /T /F 2>$null }`;
+    const killer = spawn("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      windowsHide: true,
+    });
+    killer.on("close", () => resolve(true));
+    killer.on("error", () => resolve(false));
+  });
+}
+
+async function killSession(session) {
+  if (!session) return;
+  session.alive = false;
+  try {
+    await killTree(session.term.pid);
+  } catch { /* already gone */ }
 }
 
 // --- IPC: registry ---------------------------------------------------------
@@ -230,18 +315,61 @@ ipcMain.handle("script:delete", async (_e, { scriptPath }) => {
 
 // --- IPC: execution --------------------------------------------------------
 
-ipcMain.handle("job:start", async (_e, payload) => startJob(payload));
+ipcMain.handle("pty:create", async (_e, { id, cwd, cols, rows, background }) => {
+  if (sessions.has(id)) return { ok: true, existing: true };
+  const session = createSession({ id, cwd, cols, rows });
+  session.background = !!background;
+  return { ok: true, pid: session.term.pid };
+});
 
-ipcMain.handle("job:stop", async (_e, { id }) => {
-  const job = jobs.get(id);
-  if (!job || !job.child || job.child.killed) return { ok: false };
-  await killTree(job.child.pid);
+ipcMain.handle("pty:input", async (_e, { id, data }) => {
+  const session = sessions.get(id);
+  if (!session || !session.alive) return { ok: false };
+  session.term.write(data);
   return { ok: true };
 });
 
-ipcMain.handle("job:buffer", async (_e, { id }) => {
-  const job = jobs.get(id);
-  return { buffer: job ? job.buffer : "" };
+ipcMain.handle("pty:resize", async (_e, { id, cols, rows }) => {
+  const session = sessions.get(id);
+  if (!session || !session.alive) return { ok: false };
+  try {
+    session.term.resize(Math.max(2, cols), Math.max(2, rows));
+  } catch { /* a dying pty can reject resize; harmless */ }
+  return { ok: true };
+});
+
+ipcMain.handle("pty:buffer", async (_e, { id }) => {
+  const session = sessions.get(id);
+  return { buffer: session ? session.buffer : "" };
+});
+
+ipcMain.handle("pty:dispose", async (_e, { id }) => {
+  const session = sessions.get(id);
+  if (!session) return { ok: false };
+  await killSession(session);
+  sessions.delete(id);
+  return { ok: true };
+});
+
+ipcMain.handle("job:start", async (_e, payload) => runInSession(payload));
+
+/**
+ * Ctrl+C first: a PowerShell script often cleans up on cancellation, and
+ * killing the shell outright would also destroy the session. Only if the run
+ * is still active shortly after do we take down the process tree.
+ */
+ipcMain.handle("job:stop", async (_e, { sessionId }) => {
+  const session = sessions.get(sessionId);
+  if (!session || !session.alive) return { ok: false };
+
+  session.term.write("\x03");
+
+  await new Promise((r) => setTimeout(r, 1200));
+  if (!activeRuns.has(sessionId)) return { ok: true, method: "sigint" };
+
+  // Still running: kill the children but leave the shell itself alive.
+  await killChildrenOf(session.term.pid);
+  return { ok: true, method: "kill" };
 });
 
 /** Administrator check, mirroring vw.ps1's destructive gate. */
@@ -393,9 +521,8 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  // Kill anything still running so background jobs do not outlive the UI.
-  for (const job of jobs.values()) {
-    if (job.child && !job.child.killed) killTree(job.child.pid);
-  }
+  // Terminal sessions must not outlive the UI that owns them.
+  for (const session of sessions.values()) killSession(session);
+  sessions.clear();
   if (process.platform !== "darwin") app.quit();
 });

@@ -14,15 +14,26 @@ contextBridge.exposeInMainWorld("vwg", {
   importScript: (payload) => ipcRenderer.invoke("script:import", payload),
   deleteScript: (payload) => ipcRenderer.invoke("script:delete", payload),
 
+  // Terminal sessions
+  ptyCreate: (payload) => ipcRenderer.invoke("pty:create", payload),
+  ptyInput: (payload) => ipcRenderer.invoke("pty:input", payload),
+  ptyResize: (payload) => ipcRenderer.invoke("pty:resize", payload),
+  ptyBuffer: (payload) => ipcRenderer.invoke("pty:buffer", payload),
+  ptyDispose: (payload) => ipcRenderer.invoke("pty:dispose", payload),
+  onPtyData: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("pty:data", handler);
+    return () => ipcRenderer.removeListener("pty:data", handler);
+  },
+  onPtyClosed: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on("pty:closed", handler);
+    return () => ipcRenderer.removeListener("pty:closed", handler);
+  },
+
   // Execution
   startJob: (payload) => ipcRenderer.invoke("job:start", payload),
   stopJob: (payload) => ipcRenderer.invoke("job:stop", payload),
-  jobBuffer: (payload) => ipcRenderer.invoke("job:buffer", payload),
-  onJobOutput: (cb) => {
-    const handler = (_e, data) => cb(data);
-    ipcRenderer.on("job:output", handler);
-    return () => ipcRenderer.removeListener("job:output", handler);
-  },
   onJobExit: (cb) => {
     const handler = (_e, data) => cb(data);
     ipcRenderer.on("job:exit", handler);
