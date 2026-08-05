@@ -54,7 +54,7 @@ window.VWG_STRINGS_EN = {
   "run.done": "Exit 0",
   "run.failed": "Exit {code}",
   "run.stopped": "Stopped",
-  "run.missingRequired": "Fill the required parameters first: {names}",
+  "run.missingRequired": "Check these parameters first: {names}",
   "run.alreadyRunning":
     "A command is already running. Stop it, or tick “Run in background”.",
   "run.scriptMissing": "This command's script file does not exist on disk.",
@@ -66,6 +66,34 @@ window.VWG_STRINGS_EN = {
   "console.copied": "Output copied to clipboard.",
 
   "validate.extWarning": "‘.{ext}’ is unusual here — expected {list}…",
+  "validate.required": "Required.",
+  "validate.blocked": "Fix the highlighted parameters first.",
+
+  "fmt.path": "Windows or Unix path. Relative paths resolve against the working directory.",
+  "fmt.pathBadChars": "A path cannot contain < > \" or |.",
+  "fmt.timestamp": "HH:mm:ss or plain seconds.",
+  "fmt.timestampBad": "Use HH:mm:ss, mm:ss, or a number of seconds.",
+  "fmt.lang": "Language code, e.g. fr, qc, es, ja.",
+  "fmt.langBad": "Doesn’t look like a language code (fr, es, pt-BR…).",
+  "fmt.extension": "File extension, with or without the dot.",
+  "fmt.extensionBad": "Use a bare extension like .mp4 or mkv.",
+  "fmt.url": "Stream URL — https, rtmp, rtsp or srt.",
+  "fmt.urlBad": "Needs a scheme, e.g. https:// or rtmp://.",
+  "fmt.port": "TCP port, 1–65535.",
+  "fmt.portBad": "Port must be a whole number from 1 to 65535.",
+  "fmt.keyvalue": "key: value pairs, comma separated.",
+  "fmt.keyvalueBad": "Expected key: value pairs, e.g. files: 12, retries: 2.",
+  "fmt.csv": "Comma-separated list.",
+  "fmt.dockerRepo": "Docker Hub path, e.g. user/image.",
+  "fmt.dockerRepoBad": "Expected user/image.",
+  "fmt.numberBad": "Must be a number.",
+  "fmt.integerBad": "Must be a whole number.",
+  "fmt.min": "Must be at least {min}.",
+  "fmt.max": "Must be at most {max}.",
+
+  "field.browseFolder": "Choose folder",
+  "field.browseFile": "Choose file",
+  "field.clickToBrowse": "Click to browse…",
 
   "destructive.title": "Destructive command",
   "destructive.warn":

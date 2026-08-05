@@ -155,10 +155,17 @@
     window.vwg.setPrefs(prefs).catch(() => {});
   }, 300);
 
+  let formValid = true;
+
   function setRunEnabled() {
-    const ready = !!current && !!els.targetDir.value.trim();
+    const hasDir = !!els.targetDir.value.trim();
+    const ready = !!current && hasDir && formValid;
     els.run.disabled = !ready;
-    els.run.title = ready ? "" : i18n.t("targetdir.required");
+    els.run.title = !hasDir
+      ? i18n.t("targetdir.required")
+      : !formValid
+      ? i18n.t("validate.blocked")
+      : "";
   }
 
   /* ---- Running --------------------------------------------------------- */
@@ -176,9 +183,9 @@
       return toast.error(i18n.t("run.alreadyRunning"), 6000);
     }
 
-    const missing = form.missingRequired();
-    if (missing.length) {
-      return toast.error(i18n.t("run.missingRequired", { names: missing.join(", ") }));
+    const bad = form.validateAll();
+    if (bad.length) {
+      return toast.error(i18n.t("run.missingRequired", { names: bad.join(", ") }));
     }
 
     const params = form.collect();
@@ -391,6 +398,11 @@
   function wire() {
     rail.onSelect = select;
     rail.onContext = commandMenu;
+
+    form.onValidity = (ok) => {
+      formValid = ok;
+      setRunEnabled();
+    };
 
     editor.onSaved = (name) => loadRegistry(name);
 

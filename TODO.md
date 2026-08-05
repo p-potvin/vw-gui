@@ -22,6 +22,20 @@ Last refreshed: Fri, 31 Jul 2026 08:05
       `ValidSet` is missing. A "re-scan and reconcile" action could surface these
       across all 71 commands.
 
+## Validation — implemented 31 Jul 2026
+
+Formats are inferred in `js/validate.js` from parameter name, declared type and
+registry description. Across the 123 unique parameters the split lands at:
+76 free, 46 path, 12 number, 10 integer, 10 extension, 5 language, 3 timestamp,
+2 csv, 2 key:value, 1 port, 1 url, 1 docker repo.
+
+Still open:
+
+- [ ] **`BgVolume`** (`fixAudio_Subs`) is the one parameter whose format could
+      not be inferred — "Background volume attenuation", typed string. Could be
+      dB (`-20dB`), a linear factor (`0.3`), or an ffmpeg filter fragment. It is
+      currently unvalidated free text. Confirm and add a format.
+
 ## Validation decisions (confirmed 31 Jul 2026)
 
 - `record-change -Metrics` and `-Flags` are **unused fields**. Basic

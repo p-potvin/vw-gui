@@ -718,23 +718,48 @@ textarea.input { resize: vertical; min-height: 60px; }
 .field__row { display: flex; gap: 6px; }
 .field__row .input { flex: 1; min-width: 0; }
 
-.field--invalid .input { border-color: var(--vwsq-signal-alert); }
+/* --- Validation states -------------------------------------------------- */
 
-.pickbtn {
-  flex: none;
-  width: 32px;
+.field--invalid .input,
+.field--invalid .tags { border-color: var(--vwsq-signal-alert); }
+.field--warn .input,
+.field--warn .tags { border-color: var(--vwsq-signal-warning); }
+
+.field__msg { font-size: 11px; line-height: 1.4; }
+.field__msg--error { color: var(--vwsq-signal-alert); }
+.field__msg--warn { color: var(--vwsq-signal-warning); }
+
+/* --- Path field with an embedded picker --------------------------------- */
+
+.field__wrap { position: relative; display: block; }
+
+.input--haspick { padding-right: 32px; }
+
+.field__pick {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--vwsq-console-border-strong);
-  border-radius: var(--vwsq-radius-control);
-  background: var(--vwsq-console-elevated);
-  color: var(--vwsq-console-text-secondary);
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vwsq-console-text-dim);
   cursor: pointer;
   transition: background var(--vwsq-motion-snap), color var(--vwsq-motion-snap);
 }
 
-.pickbtn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
-.pickbtn:hover { background: var(--vwsq-console-active); color: var(--vwsq-console-text-bright); }
+.field__pick svg {
+  width: 13px; height: 13px;
+  fill: none; stroke: currentColor; stroke-width: 1.4;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.field__pick:hover { background: var(--vwsq-console-active); color: var(--vwsq-iris-300); }
+.field__wrap:focus-within .field__pick { color: var(--vwsq-console-text-secondary); }
 
 /* Toggle */
 
@@ -974,6 +999,8 @@ textarea.input { resize: vertical; min-height: 60px; }
    Toasts
    ========================================================================== */
 
+/* Above the modal scrim (2000) and the context menu (3000): a validation
+   toast fired from inside a dialog has to be readable over that dialog. */
 .toasts {
   position: fixed;
   right: var(--vwsq-space-5);
@@ -981,7 +1008,7 @@ textarea.input { resize: vertical; min-height: 60px; }
   display: flex;
   flex-direction: column;
   gap: var(--vwsq-space-2);
-  z-index: 1000;
+  z-index: 4000;
   pointer-events: none;
 }
 

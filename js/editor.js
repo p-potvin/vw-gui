@@ -138,7 +138,10 @@
           class: "input",
           onchange: (e) => (p.Type = e.target.value),
         });
-        for (const t of ["string", "int", "double", "bool", "switch", "string[]"]) {
+        // "path" is a GUI-side refinement of string: it is written to the
+        // registry as a string, but forces the embedded picker and path
+        // validation regardless of what the parameter happens to be called.
+        for (const t of ["string", "path", "int", "double", "bool", "switch", "string[]"]) {
           const opt = U.el("option", { value: t, text: t });
           if ((p.Type || "string") === t) opt.selected = true;
           typeF.appendChild(opt);
