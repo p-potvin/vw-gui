@@ -24,8 +24,10 @@
     editBtn: document.getElementById("btn-edit-command"),
     menuBtn: document.getElementById("btn-cmd-menu"),
     newBtn: document.getElementById("btn-new-command"),
-    historyBtn: document.getElementById("btn-history"),
     strip: document.getElementById("signal-strip"),
+    reorderBar: document.getElementById("reorder-bar"),
+    reorderStart: document.getElementById("btn-reorder-start"),
+    reorderDone: document.getElementById("btn-reorder-done"),
   };
 
   /** Run state on the titlebar strip: "", "busy", "ok", "fail". */
@@ -46,6 +48,17 @@
     try {
       prefs = (await window.vwg.getPrefs()) || {};
     } catch { /* first run */ }
+
+    settings.init(prefs, (updated) => {
+      prefs = updated;
+      savePrefs();
+    });
+    prefs = settings.get();
+
+    drawers.register("drawer-history", { onOpen: () => history_ui.refresh() });
+    drawers.register("drawer-settings");
+
+    rail.setCategoryOrder(prefs.categoryOrder);
 
     await loadRegistry();
 
@@ -123,7 +136,13 @@
       );
     }
 
+    // Restore whatever the Default values setting says to restore.
+    const recalled = settings.recall(cmd.Name);
+    if (recalled && recalled.cwd) setTargetDir(recalled.cwd);
+
     form.build(cmd, els.targetDir.value);
+    if (recalled && recalled.params) form.applyValues(recalled.params);
+
     setRunEnabled();
 
     els.status.textContent = "";
@@ -218,6 +237,7 @@
     });
 
     jobs.add(handle, { commandName: current.Name, background, cwd, sessionId });
+    settings.remember(current.Name, cwd, params);
 
     if (background) {
       toast.info(`${current.Name} · ${i18n.t("run.queuedBackground")}`);
@@ -412,7 +432,25 @@
       select(cmd);
       if (entry.cwd) setTargetDir(entry.cwd);
       form.applyValues(entry.params);
+      drawers.close();
     };
+
+    rail.onOrderChange = (order) => {
+      prefs.categoryOrder = order;
+      savePrefs();
+    };
+
+    els.reorderStart.addEventListener("click", () => {
+      drawers.close();
+      rail.setReordering(true);
+      els.reorderBar.hidden = false;
+    });
+
+    els.reorderDone.addEventListener("click", () => {
+      rail.setReordering(false);
+      els.reorderBar.hidden = true;
+      toast.success(i18n.t("reorder.saved"));
+    });
 
     els.pickDir.addEventListener("click", async () => {
       const picked = await window.vwg.pickFolder({
@@ -435,7 +473,6 @@
     });
 
     els.newBtn.addEventListener("click", () => editor.open(null, commands));
-    els.historyBtn.addEventListener("click", () => history_ui.open());
 
     document.getElementById("win-min").addEventListener("click", () => window.vwg.win.minimize());
     document.getElementById("win-max").addEventListener("click", () => window.vwg.win.maximize());

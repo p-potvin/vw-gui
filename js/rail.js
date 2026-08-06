@@ -14,6 +14,29 @@
   let onSelect = () => {};
   let onContext = () => {};
 
+  // Reorder mode: categories get grips and become draggable.
+  let reordering = false;
+  let categoryOrder = [];
+  let onOrderChange = () => {};
+  let dragCat = null;
+
+  /** Saved order first, anything new appended alphabetically. */
+  function sortCategories(cats) {
+    const known = categoryOrder.filter((c) => cats.includes(c));
+    const rest = cats.filter((c) => !known.includes(c)).sort((a, b) => a.localeCompare(b));
+    return [...known, ...rest];
+  }
+
+  function setCategoryOrder(order) {
+    categoryOrder = Array.isArray(order) ? order.slice() : [];
+  }
+
+  function setReordering(on) {
+    reordering = !!on;
+    if (reordering) filterText = "";
+    render();
+  }
+
   function setCommands(list) {
     commands = list || [];
     countLabel.textContent = i18n.t("rail.commandCount", { n: commands.length });
@@ -55,12 +78,13 @@
       groups.get(cat).push(cmd);
     }
 
-    const cats = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+    const cats = sortCategories(Array.from(groups.keys()));
 
     for (const cat of cats) {
       const items = groups.get(cat);
-      // A filter implies you want to see what matched.
-      const isOpen = filterText ? true : !collapsed.has(cat);
+      // A filter implies you want to see what matched. Reordering collapses
+      // everything so the whole list is draggable on one screen.
+      const isOpen = reordering ? false : filterText ? true : !collapsed.has(cat);
 
       const chevron = U.icon(U.ICONS.chevron);
       chevron.classList.add("cat__chevron");
@@ -72,13 +96,14 @@
           type: "button",
           "aria-expanded": String(isOpen),
           onclick: () => {
+            if (reordering) return;
             if (collapsed.has(cat)) collapsed.delete(cat);
             else collapsed.add(cat);
             render();
           },
         },
         [
-          chevron,
+          reordering ? U.icon(U.ICONS.grip, 12) : chevron,
           U.el("span", { class: "cat__label", text: cat }),
           U.el("span", { class: "cat__count", text: String(items.length) }),
         ]
@@ -123,18 +148,77 @@
         itemsWrap.appendChild(btn);
       });
 
-      const catNode = U.el("div", { class: "cat" + (isOpen ? " cat--open" : "") }, [
-        head,
-        itemsWrap,
-      ]);
+      const catNode = U.el(
+        "div",
+        {
+          class:
+            "cat" + (isOpen ? " cat--open" : "") + (reordering ? " cat--draggable" : ""),
+          draggable: reordering ? "true" : null,
+        },
+        [head, itemsWrap]
+      );
 
-      // Spine shade, assigned by position in the sorted category list so the
+      catNode.dataset.cat = cat;
+
+      // Spine shade, assigned by position in the ordered category list so the
       // rail reads top-to-bottom as one gradient rather than random colours.
       const spineIndex = (cats.indexOf(cat) % 12) + 1;
       catNode.style.setProperty("--cat-spine", `var(--vwsq-spine-${spineIndex})`);
 
+      if (reordering) wireDrag(catNode, cats);
+
       tree.appendChild(catNode);
     }
+  }
+
+  /* ---- Drag to reorder --------------------------------------------------- */
+
+  function wireDrag(node, cats) {
+    node.addEventListener("dragstart", (e) => {
+      dragCat = node.dataset.cat;
+      node.classList.add("cat--dragging");
+      e.dataTransfer.effectAllowed = "move";
+      // Firefox requires data to be set for the drag to begin.
+      e.dataTransfer.setData("text/plain", dragCat);
+    });
+
+    node.addEventListener("dragend", () => {
+      dragCat = null;
+      U.$$(".cat", tree).forEach((n) => {
+        n.classList.remove("cat--dragging", "cat--dropbefore", "cat--dropafter");
+      });
+    });
+
+    node.addEventListener("dragover", (e) => {
+      if (!dragCat || node.dataset.cat === dragCat) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const rect = node.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      node.classList.toggle("cat--dropafter", after);
+      node.classList.toggle("cat--dropbefore", !after);
+    });
+
+    node.addEventListener("dragleave", () => {
+      node.classList.remove("cat--dropbefore", "cat--dropafter");
+    });
+
+    node.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const target = node.dataset.cat;
+      if (!dragCat || target === dragCat) return;
+
+      const rect = node.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+
+      const order = sortCategories(cats).filter((c) => c !== dragCat);
+      const at = order.indexOf(target) + (after ? 1 : 0);
+      order.splice(at, 0, dragCat);
+
+      categoryOrder = order;
+      onOrderChange(order.slice());
+      render();
+    });
   }
 
   filterInput.addEventListener(
@@ -162,7 +246,11 @@
     setCommands,
     setActive,
     render,
+    setCategoryOrder,
+    setReordering,
+    get reordering() { return reordering; },
     set onSelect(fn) { onSelect = fn; },
     set onContext(fn) { onContext = fn; },
+    set onOrderChange(fn) { onOrderChange = fn; },
   };
 })();

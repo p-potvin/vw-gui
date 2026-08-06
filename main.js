@@ -5,7 +5,7 @@
    PowerShell child processes, and the vw-commands.ps1 registry.
    ========================================================================== */
 
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, nativeImage } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -32,6 +32,12 @@ const PREFS_FILE = path.join(STORE_DIR, "prefs.json");
 const HISTORY_LIMIT = 300;
 
 let mainWindow = null;
+let tray = null;
+let quitting = false;
+
+// Mirrors the renderer's tray preferences so window events can consult them
+// without a round trip.
+let trayPrefs = { enabled: false, minimizeToTray: false };
 
 // --- PowerShell helpers ----------------------------------------------------
 
@@ -179,6 +185,7 @@ function finishRun(sessionId, jobId, exitCode) {
   });
 
   recordHistory(run).catch(() => {});
+  refreshTray();
 }
 
 /**
@@ -439,6 +446,70 @@ ipcMain.handle("prefs:set", async (_e, prefs) => {
   return { ok: true };
 });
 
+// --- Tray ------------------------------------------------------------------
+
+function trayIcon() {
+  const file = path.join(__dirname, "build", "tray-32.png");
+  const img = nativeImage.createFromPath(file);
+  return img.isEmpty() ? nativeImage.createEmpty() : img.resize({ width: 16, height: 16 });
+}
+
+function showWindow() {
+  if (!mainWindow) return createWindow();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+}
+
+function runningCount() {
+  let n = 0;
+  for (const s of sessions.values()) if (s.background) n++;
+  return activeRuns.size;
+}
+
+function buildTrayMenu() {
+  const busy = runningCount();
+  return Menu.buildFromTemplate([
+    { label: busy ? `vw-gui — ${busy} running` : "vw-gui", enabled: false },
+    { type: "separator" },
+    { label: "Open", click: showWindow },
+    {
+      label: "Quit",
+      click: () => {
+        quitting = true;
+        app.quit();
+      },
+    },
+  ]);
+}
+
+function enableTray(on) {
+  if (on && !tray) {
+    tray = new Tray(trayIcon());
+    tray.setToolTip("vw-gui");
+    tray.setContextMenu(buildTrayMenu());
+    tray.on("click", showWindow);
+    tray.on("double-click", showWindow);
+  } else if (!on && tray) {
+    tray.destroy();
+    tray = null;
+  }
+}
+
+function refreshTray() {
+  if (tray) tray.setContextMenu(buildTrayMenu());
+}
+
+ipcMain.handle("tray:apply", async (_e, prefs) => {
+  trayPrefs = {
+    enabled: !!(prefs && prefs.enabled),
+    // Minimising to tray without a tray icon would strand the window.
+    minimizeToTray: !!(prefs && prefs.enabled && prefs.minimizeToTray),
+  };
+  enableTray(trayPrefs.enabled);
+  return { ok: true, ...trayPrefs };
+});
+
 // --- Window ----------------------------------------------------------------
 
 function createWindow() {
@@ -463,6 +534,22 @@ function createWindow() {
   mainWindow.loadFile("index.html");
   mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.on("closed", () => (mainWindow = null));
+
+  // With the tray enabled, closing and minimising hide rather than exit, so
+  // background jobs keep running. Quit explicitly from the tray menu.
+  mainWindow.on("close", (e) => {
+    if (!quitting && trayPrefs.enabled && trayPrefs.minimizeToTray) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
+  mainWindow.on("minimize", (e) => {
+    if (trayPrefs.enabled && trayPrefs.minimizeToTray) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
 
   // Surface renderer failures on the terminal instead of a blank window.
   mainWindow.webContents.on("render-process-gone", (_e, details) => {
@@ -520,9 +607,17 @@ app.whenReady().then(() => {
   });
 });
 
+app.on("before-quit", () => {
+  quitting = true;
+});
+
 app.on("window-all-closed", () => {
   // Terminal sessions must not outlive the UI that owns them.
   for (const session of sessions.values()) killSession(session);
   sessions.clear();
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
   if (process.platform !== "darwin") app.quit();
 });

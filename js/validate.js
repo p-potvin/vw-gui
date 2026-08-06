@@ -148,6 +148,18 @@
       },
     },
 
+    /* Feeds ffmpeg's volume filter (volume=$BgVolume), so it takes either a
+       dB expression or a linear multiplier. */
+    ffVolume: {
+      id: "ffVolume",
+      hintKey: "fmt.ffVolume",
+      attrs: { placeholder: "-20dB", spellcheck: "false" },
+      check(v) {
+        if (!/^-?\d+(\.\d+)?(dB)?$/i.test(v)) return { level: "error", key: "fmt.ffVolumeBad" };
+        return null;
+      },
+    },
+
     free: { id: "free", hintKey: null, attrs: {}, check: () => null },
   };
 
@@ -213,6 +225,7 @@
     if (/comma-separated/.test(d) && type === "string") return FORMATS.csv;
     if (/docker hub repo/.test(d)) return FORMATS.dockerRepo;
 
+    if (/volume/.test(n) && type === "string") return FORMATS.ffVolume;
     if (/^(metrics|flags)$/.test(n)) return FORMATS.keyvalue;
     if (/^(starttime|stoptime|duration)$/.test(n)) return FORMATS.timestamp;
     if (/port$/.test(n)) return FORMATS.port;

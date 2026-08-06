@@ -10,9 +10,9 @@ build/*.exe
 store/
 *.log
 
-# QA artifacts
+# QA artifacts (screenshots), but keep the generated app icons
 *.png
-!build/icon.png
+!build/*.png
 
 # OS
 Thumbs.db

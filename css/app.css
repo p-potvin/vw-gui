@@ -401,37 +401,191 @@ ul { list-style: none; }
 .job__stop svg { width: 9px; height: 9px; fill: currentColor; }
 .job__stop:hover { background: var(--vwsq-signal-alert-soft); color: var(--vwsq-signal-alert); }
 
+/* --- Drawers ------------------------------------------------------------
+   Anchored at the bottom of the rail. The tree above is flex:1, so a drawer
+   growing pushes it up — the drawer reads as expanding toward the top. */
+
+.drawer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--vwsq-warm-border-strong);
+}
+
+.drawer--open { flex: 0 1 auto; }
+
+.drawer__head {
+  flex: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--vwsq-space-2);
+  padding: 9px var(--vwsq-space-3);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--vwsq-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vwsq-warm-ink-secondary);
+  transition: background var(--vwsq-motion-snap), color var(--vwsq-motion-snap);
+}
+
+.drawer__head:hover { background: var(--vwsq-warm-sunken); color: var(--vwsq-warm-ink); }
+.drawer--open .drawer__head { background: var(--vwsq-warm-sunken); color: var(--vwsq-warm-ink); }
+
+.drawer__icon,
+.drawer__chevron {
+  width: 13px; height: 13px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.4;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.drawer__title { flex: 1; text-align: left; }
+
+.drawer__chevron {
+  width: 11px; height: 11px;
+  transform: rotate(180deg);
+  transition: transform var(--vwsq-motion-ui);
+}
+
+.drawer--open .drawer__chevron { transform: none; }
+
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+  padding: var(--vwsq-space-2) var(--vwsq-space-3) var(--vwsq-space-3);
+  background: var(--vwsq-warm-sunken);
+  animation: vwsqFadeInScale var(--vwsq-motion-ui) both;
+}
+
+.drawer__empty {
+  padding: var(--vwsq-space-4) 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--vwsq-warm-ink-dim);
+}
+
+.drawer__action { width: 100%; margin-top: var(--vwsq-space-2); }
+
+/* --- Settings controls -------------------------------------------------- */
+
+.setting__group {
+  font-family: var(--vwsq-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--vwsq-warm-ink-dim);
+  margin: var(--vwsq-space-3) 0 var(--vwsq-space-2);
+}
+
+.setting__group:first-child { margin-top: 0; }
+
+.setting { margin-bottom: var(--vwsq-space-2); }
+.setting--disabled { opacity: 0.45; }
+
+.setting__toggle .toggle__track { background: var(--vwsq-warm-muted); }
+.setting__toggle .toggle__thumb { background: var(--vwsq-warm-ink-dim); }
+.setting__toggle input:checked + .toggle__track { background: var(--vwsq-iris-500); }
+.setting__toggle input:checked + .toggle__track .toggle__thumb { background: var(--vwsq-warm-raised); }
+.setting__toggle .toggle__label { color: var(--vwsq-warm-ink); text-transform: none; letter-spacing: 0.02em; font-size: 11px; }
+
+.setting__hint {
+  margin: 3px 0 0 40px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--vwsq-warm-ink-dim);
+}
+
+.radios { display: flex; flex-direction: column; gap: 2px; }
+
+.radio {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--vwsq-space-2);
+  padding: 6px var(--vwsq-space-2);
+  border-radius: var(--vwsq-radius-control);
+  cursor: pointer;
+  transition: background var(--vwsq-motion-snap);
+}
+
+.radio:hover { background: var(--vwsq-warm-raised); }
+.radio input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.radio__dot {
+  flex: none;
+  width: 13px; height: 13px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid var(--vwsq-warm-border-strong);
+  background: var(--vwsq-warm-raised);
+  position: relative;
+  transition: border-color var(--vwsq-motion-snap);
+}
+
+.radio input:checked + .radio__dot { border-color: var(--vwsq-iris-500); }
+
+.radio input:checked + .radio__dot::after {
+  content: "";
+  position: absolute;
+  inset: 2.5px;
+  border-radius: 50%;
+  background: var(--vwsq-iris-500);
+}
+
+.radio input:focus-visible + .radio__dot {
+  outline: var(--vwsq-focus-ring);
+  outline-offset: var(--vwsq-focus-offset);
+}
+
+.radio__body { display: flex; flex-direction: column; gap: 1px; }
+.radio__label { font-size: 11.5px; color: var(--vwsq-warm-ink); }
+.radio__hint { font-size: 10.5px; line-height: 1.35; color: var(--vwsq-warm-ink-dim); }
+
+/* --- Reorder mode ------------------------------------------------------- */
+
+.reorderbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--vwsq-space-2);
+  padding: var(--vwsq-space-2) var(--vwsq-space-3);
+  border-top: 1px solid var(--vwsq-coral-500);
+  background: var(--vwsq-coral-050);
+}
+
+.reorderbar__hint {
+  flex: 1;
+  font-family: var(--vwsq-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  color: var(--vwsq-coral-800);
+}
+
+.btn--sm { padding: 5px 10px; font-size: 10px; }
+
+.cat--draggable { cursor: grab; }
+.cat--draggable .cat__head { cursor: grab; }
+.cat--dragging { opacity: 0.4; }
+
+.cat--dropbefore { box-shadow: 0 -2px 0 var(--vwsq-iris-500); }
+.cat--dropafter { box-shadow: 0 2px 0 var(--vwsq-iris-500); }
+
 /* --- Rail footer -------------------------------------------------------- */
 
 .rail__foot {
   flex: none;
   display: flex;
   align-items: center;
-  gap: var(--vwsq-space-2);
-  padding: var(--vwsq-space-2) var(--vwsq-space-3);
+  padding: 6px var(--vwsq-space-3);
   border-top: 1px solid var(--vwsq-warm-border);
 }
-
-.rail__footbtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: 0;
-  background: transparent;
-  border-radius: var(--vwsq-radius-control);
-  cursor: pointer;
-  font-family: var(--vwsq-font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--vwsq-warm-ink-secondary);
-  transition: background var(--vwsq-motion-snap), color var(--vwsq-motion-snap);
-}
-
-.rail__footbtn svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
-.rail__footbtn:hover { background: var(--vwsq-warm-sunken); color: var(--vwsq-warm-ink); }
 
 .rail__count {
   margin-left: auto;

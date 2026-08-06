@@ -50,6 +50,9 @@ contextBridge.exposeInMainWorld("vwg", {
   openPath: (payload) => ipcRenderer.invoke("shell:openPath", payload),
   showInFolder: (payload) => ipcRenderer.invoke("shell:showInFolder", payload),
 
+  // Tray
+  applyTray: (prefs) => ipcRenderer.invoke("tray:apply", prefs),
+
   // Store
   listHistory: () => ipcRenderer.invoke("history:list"),
   clearHistory: () => ipcRenderer.invoke("history:clear"),

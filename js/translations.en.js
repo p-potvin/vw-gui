@@ -156,6 +156,30 @@ window.VWG_STRINGS_EN = {
   "history.reuse": "Load these parameters",
   "history.close": "Close",
 
+  "rail.settings": "Settings",
+
+  "settings.trayGroup": "System tray",
+  "settings.trayEnabled": "Show a tray icon",
+  "settings.trayEnabledHint": "Puts vw-gui in the notification area, with running job count.",
+  "settings.trayMinimize": "Minimise to tray",
+  "settings.trayMinimizeHint":
+    "Closing and minimising hide the window instead of quitting, so background jobs keep running. Quit from the tray menu.",
+
+  "settings.defaultsGroup": "Default values",
+  "settings.defaultsNone": "None",
+  "settings.defaultsNoneHint": "Every field starts empty.",
+  "settings.defaultsLastDir": "Remember last directory",
+  "settings.defaultsLastDirHint": "Restores the working directory per command. Parameters start empty.",
+  "settings.defaultsAll": "Remember all",
+  "settings.defaultsAllHint": "Restores the working directory and every parameter, per command.",
+  "settings.forget": "Forget remembered values ({n})",
+  "settings.forgot": "Remembered values cleared.",
+  "settings.reorder": "Reorder categories",
+
+  "reorder.hint": "Drag categories to reorder",
+  "reorder.done": "Done",
+  "reorder.saved": "Category order saved.",
+
   "common.close": "Close",
   "common.cancel": "Cancel",
   "common.copied": "Copied.",

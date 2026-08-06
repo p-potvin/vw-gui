@@ -79,13 +79,56 @@
           <ul class="jobs__list" id="jobs-list"></ul>
         </section>
 
-        <footer class="rail__foot">
-          <button class="rail__footbtn" id="btn-history">
-            <svg viewBox="0 0 16 16" aria-hidden="true">
+        <!-- Reorder bar, shown only while rearranging categories -->
+        <div class="reorderbar" id="reorder-bar" hidden>
+          <span class="reorderbar__hint" data-i18n="reorder.hint">Drag categories to reorder</span>
+          <button class="btn btn--warm btn--sm" id="btn-reorder-done">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>
+            <span data-i18n="reorder.done">Done</span>
+          </button>
+        </div>
+
+        <!-- Drawers ------------------------------------------------------ -->
+        <section class="drawer" id="drawer-history">
+          <button class="drawer__head" type="button">
+            <svg class="drawer__icon" viewBox="0 0 16 16" aria-hidden="true">
               <circle cx="8" cy="8" r="6" /><path d="M8 4.5V8l2.5 1.5" />
             </svg>
-            <span data-i18n="rail.history">History</span>
+            <span class="drawer__title" data-i18n="rail.history">History</span>
+            <svg class="drawer__chevron" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M4 10l4-4 4 4" />
+            </svg>
           </button>
+          <div class="drawer__body">
+            <div id="drawer-history-content"></div>
+          </div>
+        </section>
+
+        <section class="drawer" id="drawer-settings">
+          <button class="drawer__head" type="button">
+            <svg class="drawer__icon" viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="2.2" />
+              <path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7L3.6 3.6" />
+            </svg>
+            <span class="drawer__title" data-i18n="rail.settings">Settings</span>
+            <svg class="drawer__chevron" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M4 10l4-4 4 4" />
+            </svg>
+          </button>
+          <div class="drawer__body">
+            <div id="drawer-settings-content"></div>
+            <button class="btn btn--ghost drawer__action" id="btn-reorder-start" type="button">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <circle cx="6" cy="4" r="1.15" /><circle cx="10" cy="4" r="1.15" />
+                <circle cx="6" cy="8" r="1.15" /><circle cx="10" cy="8" r="1.15" />
+                <circle cx="6" cy="12" r="1.15" /><circle cx="10" cy="12" r="1.15" />
+              </svg>
+              <span data-i18n="settings.reorder">Reorder categories</span>
+            </button>
+          </div>
+        </section>
+
+        <footer class="rail__foot">
           <span class="rail__count" id="command-count"></span>
         </footer>
       </nav>
@@ -224,12 +267,14 @@
     <script src="js/validate.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/modal.js"></script>
+    <script src="js/drawers.js"></script>
     <script src="js/form.js"></script>
     <script src="js/terminal.js"></script>
     <script src="js/jobs.js"></script>
     <script src="js/rail.js"></script>
     <script src="js/editor.js"></script>
     <script src="js/history.js"></script>
+    <script src="js/settings.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

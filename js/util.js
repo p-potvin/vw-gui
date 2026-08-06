@@ -51,6 +51,9 @@
     chevron: '<path d="M6 3.5L10.5 8 6 12.5"/>',
     stop: '<rect x="4" y="4" width="8" height="8" rx="1"/>',
     refresh: '<path d="M13 8a5 5 0 11-1.6-3.7M13 2.5V6h-3.5"/>',
+    grip: '<circle cx="6" cy="4" r="1.15"/><circle cx="10" cy="4" r="1.15"/><circle cx="6" cy="8" r="1.15"/><circle cx="10" cy="8" r="1.15"/><circle cx="6" cy="12" r="1.15"/><circle cx="10" cy="12" r="1.15"/>',
+    gear: '<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7L3.6 3.6"/>',
+    check: '<path d="M3.5 8.5l3 3 6-7"/>',
   };
 
   /**
