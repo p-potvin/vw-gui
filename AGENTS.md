@@ -45,7 +45,16 @@ tooling**, not a shipped product surface.
    command line — the shell echoes what is typed, and an echoed sentinel would
    register as a completed run before the command had even started.
 
-6. **Do not call `term.kill()` from node-pty.** On Windows it loads
+6. **Do not remove `scripts/**` from `asarUnpack`, and do not drop the
+   `app.asar` → `app.asar.unpacked` rewrite in `main.js`.** The helper scripts
+   are executed by `pwsh`, which has no asar support and reports them missing.
+   The failure is invisible in development and total once packaged.
+
+7. **Do not set `npmRebuild: true`.** node-pty's N-API prebuilds already load
+   under Electron. A source rebuild fails outright: node-gyp rejects the space
+   in "Github Repos" and winpty's `GetCommitHash.bat` is not published.
+
+8. **Do not call `term.kill()` from node-pty.** On Windows it loads
    `conpty_console_list_agent`, which throws `AttachConsole failed` and takes
    the process down. Use `killTree` / `killChildrenOf` in `main.js`, which shell
    out to `taskkill`.

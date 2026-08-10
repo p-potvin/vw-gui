@@ -20,7 +20,20 @@ const pty = require("node-pty");
 const VW_ROOT = path.join(os.homedir(), "Desktop", "vw-cli");
 const REGISTRY_PATH = path.join(VW_ROOT, "vw-commands.ps1");
 
-const SCRIPTS_DIR = path.join(__dirname, "scripts");
+/**
+ * Rewrite an in-asar path to its unpacked twin.
+ *
+ * Electron patches fs so reading through app.asar just works, but pwsh is an
+ * external process with no such patch — handed a path inside the archive it
+ * simply reports the file missing. Every helper script is invoked that way, so
+ * without this the packaged app cannot read the registry or run a command,
+ * while running fine from source.
+ */
+function unpacked(p) {
+  return p.includes("app.asar") ? p.replace("app.asar", "app.asar.unpacked") : p;
+}
+
+const SCRIPTS_DIR = unpacked(path.join(__dirname, "scripts"));
 const READ_REGISTRY = path.join(SCRIPTS_DIR, "vwg-read-registry.ps1");
 const WRITE_REGISTRY = path.join(SCRIPTS_DIR, "vwg-write-registry.ps1");
 const PARSE_PARAMS = path.join(SCRIPTS_DIR, "vwg-parse-params.ps1");

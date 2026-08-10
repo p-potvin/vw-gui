@@ -20,21 +20,35 @@
   },
   "build": {
     "appId": "com.vaultwares.vwgui",
+    "productName": "vw-gui",
+    "npmRebuild": false,
     "files": [
       "main.js",
       "preload.js",
       "index.html",
       "css/**",
       "js/**",
+      "fonts/**",
       "scripts/**",
+      "build/*.png",
+      "build/*.ico",
       "node_modules/**"
     ],
+    "asarUnpack": [
+      "scripts/**",
+      "node_modules/node-pty/**"
+    ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "vw-gui",
       "artifactName": "vw-gui-setup-${version}.${ext}"
     }
   },

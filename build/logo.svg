@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="vw-gui">
+  <title>vw-gui</title>
+
+  <defs>
+    <!-- Seam lighting, same idea as the app: the source sits off to one
+         side rather than washing the whole face evenly. -->
+    <radialGradient id="field" cx="14%" cy="42%" r="96%">
+      <stop offset="0%"   stop-color="#1B2136"/>
+      <stop offset="58%"  stop-color="#11141B"/>
+      <stop offset="100%" stop-color="#0A0C11"/>
+    </radialGradient>
+
+    <linearGradient id="caret" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#98A1F7"/>
+      <stop offset="100%" stop-color="#6E7BF2"/>
+    </linearGradient>
+
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#FF8A6B"/>
+      <stop offset="100%" stop-color="#E86F4F"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#field)"/>
+  <rect x="1.5" y="1.5" width="509" height="509" rx="114.5"
+        fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="3"/>
+
+  <!-- The prompt caret. Sits left of centre so the rule below reads as a
+       cursor waiting on the line, not as decoration under a glyph. -->
+  <path d="M 168 148 L 286 256 L 168 364"
+        fill="none" stroke="url(#caret)" stroke-width="52"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Coral rule: the seam colour, and the underline. -->
+  <rect x="150" y="398" width="212" height="30" rx="15" fill="url(#rule)"/>
+</svg>
